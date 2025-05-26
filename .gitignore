@@ -8,3 +8,8 @@ output.cpp
 *.dylib
 *.a
 *.lib
+__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+*.class

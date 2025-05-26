@@ -1,0 +1,10 @@
+*.out
+output.cpp
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.a
+*.lib

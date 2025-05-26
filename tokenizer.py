@@ -39,31 +39,35 @@ class Tokenizer:
             ('READ', r'ΔΙΑΒΑΣΕ'),           # Read input
             ('WRITE', r'ΓΡΑΨΕ'),            # Write output
 
-            ('COLON', r':'),
-            ('COMMA', r','),
 
             ('NEQ', r'(?<!<)<>(?!>)'),      # Match '<>' only if not part of a larger token
+            ('GTE', r'>='),                 # Greater than or equal to
+            ('LTE', r'<='),                 # Less than or equal to
             ('GT', r'>'),                   # Greater than
             ('LT', r'<'),                   # Less than
             ('EQ', r'='),                   # Equal to
-            ('GTE', r'>='),                 # Greater than or equal to
-            ('LTE', r'<='),                 # Less than or equal to
             
+            ('NOT', r'ΟΧΙ'),
             ('AND', r'ΚΑΙ'),
             ('OR', r'Ή'),
-            ('NOT', r'ΟΧΙ'),
 
             ('PROCEDURE', r'ΔΙΑΔΙΚΑΣΙΑ'),
-            ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),   
+            ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),
+            ('BUILTIN_FUNCTION', r'Α_Μ|Α_Τ|Τ_Ρ'),
 
             ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
             ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
 
             ('STRING', r'"[^"]*"'),
-            ('NUMBER', r'-?\d+'),
             ('FLOAT', r'-?\d+\,\d+'),
+            ('NUMBER', r'-?\d+'),
             ('BOOLEAN', r'ΑΛΗΘΗΣ|ΨΕΥΔΗΣ'),
 
+            ('COLON', r':'),
+            ('COMMA', r','),
+
+            ('LPAREN', r'\('),
+            ('RPAREN', r'\)'),
             ('OP', r'[+\-*/]'),             # Arithmetic operators
             ('MOD', r'MOD'),                  # Modulus operator
             ('DIV', r'DIV'),                  # Integer division operator
@@ -78,11 +82,11 @@ class Tokenizer:
     def tokenize(self):
         token_regex = '|'.join(f'(?P<{pair[0]}>{pair[1]})' for pair in self.token_specification)
         program_name_expected = False  # Flag to track if the next token is the program name
-    
+
         for match in re.finditer(token_regex, self.code):
             kind = match.lastgroup
             value = match.group()
-    
+
             if kind in ['WHITESPACE', 'COMMENT']:
                 continue  # Skip whitespace and comments
             elif kind == 'MISMATCH':
@@ -105,7 +109,7 @@ class Tokenizer:
                 # Prefix English variable names with a distinct prefix
                 value = 'en_' + value
                 kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
-    
+
             self.tokens.append((kind, value))
-    
+
         return self.tokens

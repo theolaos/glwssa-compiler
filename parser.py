@@ -1,6 +1,18 @@
+VALID_VARIABLE_TYPES = {'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL'}
+VALID_PROCESS_EXPRESSION_TOKENS = {
+    'IDENTIFIER',
+    'NUMBER', 'FLOAT', 'STRING', 'LOGICAL', 
+    'OP',
+    'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ', 
+    'NOT', 'AND', 'OR', 'MOD', 'DIV',
+    'BUILTIN_FUNCTION', 'LPAREN', 'RPAREN'
+}
+
 class Parser:
     def __init__(self, tokens, token):
         self.tokens = tokens
+        for i, token in enumerate(self.tokens):
+            print(i, token)
         self.current_token_index = 0
         self.cpp_code = []
         self.program_name = "a"
@@ -36,7 +48,7 @@ class Parser:
         self.current_token_index += 1
 
 
-    def process_expression(self, valid_tokens, end_tokens):
+    def process_expression(self, valid_tokens: set, end_tokens: set):
         """
         Process an expression by iterating over tokens until an end token is encountered.
 
@@ -45,20 +57,70 @@ class Parser:
         :return: A list of processed tokens for the expression.
         """
         expression_tokens = []
+        # print("START")
+        # for token in self.tokens[self.current_token_index:]:
+        #     print(token)
 
         while self.current_token() and self.current_token()[0] not in end_tokens:
             token_type, token_value = self.current_token()
-            if token_type not in valid_tokens:
-                raise SyntaxError(f"Unexpected token '{token_value}' in expression")
-            
-            if token_type == 'FLOAT':
+            # print(token_type, token_value)
+
+            if token_type not in valid_tokens.union({'LPAREN', 'RPAREN', 'BUILTIN_FUNCTION'}):
+                raise SyntaxError(f"Unexpected token type :'{token_type}' and value :'{token_value}' in expression")
+
+            if token_type == 'LPAREN':
+                # Handle sub-expression inside parentheses
+                self.next_token()  # Skip '('
+                sub_expression = self.process_expression(valid_tokens, {'RPAREN'})
+                expression_tokens.append(f"({' '.join(sub_expression)})")
+
+
+            elif token_type == 'RPAREN':
+                # Stop processing if a closing parenthesis is encountered
+                break
+            elif token_type == 'FLOAT':
                 # Convert Greek float format (e.g., 2,5) to C++ format (e.g., 2.5)
                 token_value = token_value.replace(',', '.')
+                expression_tokens.append(token_value)
+            elif token_type == 'BUILTIN_FUNCTION':
+                # Handle built-in functions
+                function_name = {
+                    'Α_Τ': 'std::abs',
+                    'Α_Μ': 'std::floor',
+                    'Τ_Ρ': 'std::sqrt'
+                }.get(token_value, token_value)
+                self.next_token()  # Skip the function name
+                if not self.current_token() or self.current_token()[0] != 'LPAREN':
+                    raise SyntaxError(f"Expected '(' after function '{token_value}'")
+                self.next_token()  # Skip '('
+                param_tokens = self.process_expression(valid_tokens, {'RPAREN'})
+                expression_tokens.append(f"{function_name}({' '.join(param_tokens)})")
+
             elif token_type in self.operator_mapping:
                 # Map operators using the operator_mapping dictionary
                 token_value = self.operator_mapping[token_type]
+            
+                expression_tokens.append(token_value)
 
-            expression_tokens.append(token_value)
+            elif token_type == 'OP':
+                token_type, token_value = self.current_token()
+
+                print(token_value, 'operator found')
+                if token_value == '/':
+                    print(' Division operator found, checking for float conversion...')
+                    # Check the previous and next tokens for constants
+                    if expression_tokens and expression_tokens[-1].isdigit():
+                        expression_tokens[-1] = f"{expression_tokens[-1]}.0"  # Convert to float
+                    if self.current_token(1) and self.current_token(1)[0] == 'NUMBER':
+                        next_token_value = self.current_token(1)[1]
+                        self.tokens[self.current_token_index + 1] = ('FLOAT', f"{next_token_value}.0")  # Convert next token to float
+ 
+                expression_tokens.append(token_value)
+                
+            else:
+                # Add other valid tokens directly
+                expression_tokens.append(token_value)
+
             self.next_token()  # Move to the next token
 
         return expression_tokens
@@ -74,7 +136,7 @@ class Parser:
                 self.parse_program()
             elif token_type == 'VARIABLES':
                 self.parse_variables()
-                print("Parsing variables...")
+                # print("Parsing variables...")
             elif token_type == 'READ':
                 self.parse_read()
             elif token_type == 'WRITE':
@@ -112,7 +174,15 @@ class Parser:
                 self.next_token()  # Skip unhandled tokens
 
     def parse_program(self):
-        self.cpp_code.append(f"#include <iostream>\n\nint main() {{")
+        self.cpp_code.append("\n".join([
+            '#include <iostream>',
+            '#include <string>',
+            '#include <cmath>',  # For mathematical functions
+            '#include <cstdlib>',  # For std::abs, std::floor, etc.
+            'int main() {'
+        ])
+
+        )
         self.next_token()  # Skip 'ΠΡΟΓΡΑΜΜΑ'
         if not self.current_token() or self.current_token()[0] != 'PROGRAM_NAME':
             raise SyntaxError("Expected program name after 'ΠΡΟΓΡΑΜΜΑ'")
@@ -123,7 +193,7 @@ class Parser:
         while not(self.current_token() and self.current_token()[0] not in ['NEWLINE','VARIABLES']):
             self.next_token()
 
-        print(self.current_token(), '...')
+        # print(self.current_token(), '...')
         VALID_VARIABLE_TYPES = {'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL'}
 
         while self.current_token() and self.current_token()[0] in VALID_VARIABLE_TYPES:
@@ -182,7 +252,7 @@ class Parser:
 
 
     def parse_write(self):
-        VALID_READ_WRITE_TOKENS = {'IDENTIFIER', 'STRING', 'NUMBER', 'FLOAT', 'OP', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        VALID_READ_WRITE_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
         END_TOKENS = {'NEWLINE', 'COMMA'}
 
         self.next_token()  # Skip 'ΓΡΑΨΕ'
@@ -201,7 +271,7 @@ class Parser:
         self.cpp_code.append(f"std::cout << {' << \" \" << '.join(write_parts)} << std::endl;")
 
     def parse_assignment(self):
-        VALID_ASSIGNMENT_TOKENS = {'OP', 'NUMBER', 'FLOAT', 'STRING', 'IDENTIFIER', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        VALID_ASSIGNMENT_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
         END_TOKENS = {'NEWLINE'}
 
         # Get the variable being assigned to
@@ -219,7 +289,7 @@ class Parser:
 
 
     def parse_if(self):
-        VALID_CONDITIONAL_TOKENS = {'IDENTIFIER', 'NUMBER', 'FLOAT', 'STRING', 'OP', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        VALID_CONDITIONAL_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
         END_TOKENS = {'THEN', 'END_IF'}
 
         self.next_token()  # Skip 'ΑΝ'

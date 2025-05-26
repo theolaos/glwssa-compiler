@@ -11,27 +11,62 @@ class Parser:
             'Π': 'P', 'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y',
             'Φ': 'F', 'Χ': 'CH', 'Ψ': 'PS', 'Ω': 'W'
         }
-        self.inequality_mapping = {
-            '<>': '!=',  # Not equal
-            '=': '==',   # Equal
-            '>': '>',    # Greater than
-            '<': '<',    # Less than
-            '>=': '>=',  # Greater than or equal
-            '<=': '<='   # Less than or equal
+        self.operator_mapping = {
+            'NEQ': '!=',  # Not equal
+            'EQ': '==',   # Equal
+            'GT': '>',    # Greater than
+            'LT': '<',    # Less than
+            'GTE': '>=',  # Greater than or equal
+            'LTE': '<=',   # Less than or equal
+            'AND': '&&',  # Logical AND
+            'OR': '||',   # Logical OR
+            'NOT': '!',   # Logical NOT
+            'MOD': '%',   # Modulus operator
+            'DIV': '//',  # Division operator
         }
+
 
     def current_token(self, index=0):
         if self.current_token_index < len(self.tokens):
             return self.tokens[self.current_token_index+index]
         return None  # Return None if out of bounds
 
+
     def next_token(self):
         self.current_token_index += 1
+
+
+    def process_expression(self, valid_tokens, end_tokens):
+        """
+        Process an expression by iterating over tokens until an end token is encountered.
+
+        :param valid_tokens: A set of valid token types for the expression.
+        :param end_tokens: A set of token types that indicate the end of the expression.
+        :return: A list of processed tokens for the expression.
+        """
+        expression_tokens = []
+
+        while self.current_token() and self.current_token()[0] not in end_tokens:
+            token_type, token_value = self.current_token()
+            if token_type not in valid_tokens:
+                raise SyntaxError(f"Unexpected token '{token_value}' in expression")
+            
+            if token_type == 'FLOAT':
+                # Convert Greek float format (e.g., 2,5) to C++ format (e.g., 2.5)
+                token_value = token_value.replace(',', '.')
+            elif token_type in self.operator_mapping:
+                # Map operators using the operator_mapping dictionary
+                token_value = self.operator_mapping[token_type]
+
+            expression_tokens.append(token_value)
+            self.next_token()  # Move to the next token
+
+        return expression_tokens
+
 
     def parse(self):
         while self.current_token_index < len(self.tokens):
             token = self.current_token()
-            print(token)
             if token is None:
                 break  # Exit if no more tokens
             token_type, token_value = token
@@ -60,14 +95,29 @@ class Parser:
                 break
 
         return "\n".join(self.cpp_code), self.program_name
+    
+
+    def parse_block(self, end_tokens):
+        while self.current_token() and self.current_token()[0] not in end_tokens:
+            token_type, _ = self.current_token()
+            if token_type == 'WRITE':
+                self.parse_write()
+            elif token_type == 'READ':
+                self.parse_read()
+            elif token_type == 'IF':
+                self.parse_if()  # Handle nested if statements
+            elif token_type == 'ASSIGN':
+                self.parse_assignment()
+            else:
+                self.next_token()  # Skip unhandled tokens
 
     def parse_program(self):
         self.cpp_code.append(f"#include <iostream>\n\nint main() {{")
         self.next_token()  # Skip 'ΠΡΟΓΡΑΜΜΑ'
-        if not self.current_token() or self.current_token()[0] != 'IDENTIFIER':
+        if not self.current_token() or self.current_token()[0] != 'PROGRAM_NAME':
             raise SyntaxError("Expected program name after 'ΠΡΟΓΡΑΜΜΑ'")
-        _, program_name = self.current_token()
-        self.program_name = ''.join(self.greek_to_english.get(char, char) for char in program_name)
+        _, self.program_name = self.current_token()
+
 
     def parse_variables(self):
         while not(self.current_token() and self.current_token()[0] not in ['NEWLINE','VARIABLES']):
@@ -105,9 +155,7 @@ class Parser:
         # Parse variable names
         while self.current_token() and self.current_token()[0] == 'IDENTIFIER':
             _, var_name = self.current_token()
-            # Convert Greek variable names to English
-            english_name = ''.join(self.greek_to_english.get(char, char) for char in var_name)
-            variables.append(english_name)
+            variables.append(var_name)
             self.next_token()  # Move to the next token
             if self.current_token() and self.current_token()[0] == 'COMMA':
                 self.next_token()  # Skip the comma
@@ -128,91 +176,77 @@ class Parser:
                 raise SyntaxError(f"Unexpected token '{var_name}' in read command")
             if token_type == 'IDENTIFIER':
                 # Convert Greek variable names to English
-                english_name = ''.join(self.greek_to_english.get(char, char) for char in var_name)
-                read_tokens.append(english_name)
+                read_tokens.append(var_name)
             self.next_token()  # Move to the next token
         self.cpp_code.append(f"std::cin >> {' >> '.join(read_tokens)};")
 
 
     def parse_write(self):
-        VALID_READ_WRITE_TOKENS = {'IDENTIFIER', 'STRING', 'COMMA'}
+        VALID_READ_WRITE_TOKENS = {'IDENTIFIER', 'STRING', 'NUMBER', 'FLOAT', 'OP', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        END_TOKENS = {'NEWLINE', 'COMMA'}
 
         self.next_token()  # Skip 'ΓΡΑΨΕ'
-        write_tokens = []
+        write_parts = []
+
         while self.current_token() and self.current_token()[0] != 'NEWLINE':
-            token_type, value = self.current_token()
-            if token_type not in VALID_READ_WRITE_TOKENS:
-                raise SyntaxError(f"Unexpected token '{value}' in write command")
-            if token_type == 'STRING':  # String literal
-                write_tokens.append(value)
-            elif token_type == 'IDENTIFIER':  # Variable
-                english_name = ''.join(self.greek_to_english.get(char, char) for char in value)
-                write_tokens.append(english_name)
-            self.next_token()  # Move to the next token
-        self.cpp_code.append(f"std::cout << {' << '.join(write_tokens)} << std::endl;")
+            # Process each part of the expression until a comma or newline is encountered
+            part_tokens = self.process_expression(VALID_READ_WRITE_TOKENS, END_TOKENS)
+            write_parts.append(' '.join(part_tokens))
+
+            # If the current token is a comma, skip it and continue
+            if self.current_token() and self.current_token()[0] == 'COMMA':
+                self.next_token()
+
+        # Generate the C++ write statement
+        self.cpp_code.append(f"std::cout << {' << \" \" << '.join(write_parts)} << std::endl;")
 
     def parse_assignment(self):
-        VALID_ASSIGNMENT_TOKENS = {'OP', 'NUMBER', 'IDENTIFIER', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', '='}
+        VALID_ASSIGNMENT_TOKENS = {'OP', 'NUMBER', 'FLOAT', 'STRING', 'IDENTIFIER', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        END_TOKENS = {'NEWLINE'}
 
         # Get the variable being assigned to
         if self.current_token_index == 0 or self.current_token(-1)[0] != 'IDENTIFIER':
             raise SyntaxError("Expected an identifier before the assignment operator '<--'")
         _, var_name = self.current_token(-1)  # The variable is the token before '<--'
-        english_name = ''.join(self.greek_to_english.get(char, char) for char in var_name)
-        self.next_token()  # Skip '<--'
 
-        # Parse the expression on the right-hand side
-        expression_tokens = []
-        while self.current_token():
-            token_type, token_value = self.current_token()
-            if token_type == 'NEWLINE':  # Stop parsing at the end of the line
-                break
-            if token_type not in VALID_ASSIGNMENT_TOKENS:
-                raise SyntaxError(f"Unexpected token '{token_value}' in assignment expression")
-            if token_type == 'IDENTIFIER':
-                # Convert Greek variable names to English
-                token_value = ''.join(self.greek_to_english.get(char, char) for char in token_value)
-            elif token_type in ['GT', 'LT', 'GTE', 'LTE', 'NEQ', '=']:
-                # Map inequality tokens to C++ equivalents
-                token_value = self.inequality_mapping.get(token_value, token_value)
-            expression_tokens.append(token_value)
-            self.next_token()
+        self.next_token()  # Skip '<--'
+        expression_tokens = self.process_expression(VALID_ASSIGNMENT_TOKENS, END_TOKENS)
 
         # Generate the C++ assignment statement
         if not expression_tokens:
             raise SyntaxError(f"Missing expression on the right-hand side of assignment for '{var_name}'")
-        self.cpp_code.append(f"{english_name} = {' '.join(expression_tokens)};")
+        self.cpp_code.append(f"{var_name} = {' '.join(expression_tokens)};")
+
 
     def parse_if(self):
-        VALID_CONDITIONAL_TOKENS = {'IDENTIFIER', 'NUMBER', 'OP', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', '='}
+        VALID_CONDITIONAL_TOKENS = {'IDENTIFIER', 'NUMBER', 'FLOAT', 'STRING', 'OP', 'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}
+        END_TOKENS = {'THEN', 'END_IF'}
 
         self.next_token()  # Skip 'ΑΝ'
-        condition_tokens = []
-        while self.current_token() and self.current_token()[0] not in ['THEN', 'END_IF']:
-            token_type, token_value = self.current_token()
-            if token_type not in VALID_CONDITIONAL_TOKENS:
-                raise SyntaxError(f"Unexpected token '{token_value}' in conditional expression")
-            if token_type == 'IDENTIFIER':
-                token_value = ''.join(self.greek_to_english.get(char, char) for char in token_value)
-            elif token_type in ['GT', 'LT', 'GTE', 'LTE', 'NEQ', '=']:
-                # Map inequality tokens to C++ equivalents
-                token_value = self.inequality_mapping.get(token_value, token_value)
-            condition_tokens.append(token_value)
-            self.next_token()  # Advance to the next token
+        condition_tokens = self.process_expression(VALID_CONDITIONAL_TOKENS, END_TOKENS)
+
         translated_condition = ' '.join(condition_tokens)
         self.cpp_code.append(f"if ({translated_condition}) {{")
+
         if self.current_token() and self.current_token()[0] == 'THEN':
             self.next_token()  # Skip 'ΤΟΤΕ'
-        while self.current_token() and self.current_token()[0] != 'END_IF':
-            token_type, _ = self.current_token()
-            if token_type == 'WRITE':
-                self.parse_write()
-            elif token_type == 'READ':
-                self.parse_read()
-            elif token_type == 'IF':
-                self.parse_if()  # Handle nested if statements
-            else:
-                self.next_token()  # Skip unhandled tokens
+
+        # Parse the body of the IF block
+        self.parse_block(['END_IF', 'ELSE_IF', 'ELSE'])
         self.cpp_code.append("}")
+
+        # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
+        while self.current_token() and self.current_token()[0] == 'ELSE_IF':
+            self.cpp_code.append("else ")
+            self.parse_if()  # Recursively parse the else-if block
+
+        # Handle ΑΛΛΙΩΣ (else)
+        if self.current_token() and self.current_token()[0] == 'ELSE':
+            self.next_token()  # Skip 'ΑΛΛΙΩΣ'
+            self.cpp_code.append("else {")
+            self.parse_block(['END_IF'])
+            self.cpp_code.append("}")
+
+        # End the IF block
         if self.current_token() and self.current_token()[0] == 'END_IF':
             self.next_token()  # Skip 'ΤΕΛΟΣ_ΑΝ'

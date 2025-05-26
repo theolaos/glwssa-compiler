@@ -7,6 +7,7 @@ from parser import Parser
 
 def main():
     code: str = ""
+    compile_command: list[str] = []
     
     with open("file.glwssa") as program:
         code = program.read()

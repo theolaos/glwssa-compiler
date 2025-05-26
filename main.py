@@ -1,10 +1,13 @@
+import subprocess
+import os
+
 from tokenizer import Tokenizer
 from parser import Parser
-import subprocess
 
-code: str = ""
 
 def main():
+    code: str = ""
+    
     with open("file.glwssa") as program:
         code = program.read()
 
@@ -17,11 +20,20 @@ def main():
     with open("output.cpp", "w") as output_file:
         output_file.write(cpp_code)
 
+    # Detect the operating system
+    is_windows = os.name == "nt"
+
+    # Set the compile command based on the OS
+    if is_windows: # https://github.com/niXman/mingw-builds-binaries?tab=readme-ov-file
+        compile_command = ["/mingw64/bin/g++.exe", "output.cpp", "-o", f"{program_name}.exe"]
+    else:
+        compile_command = ["g++", "output.cpp", "-o", f"{program_name}.out"]
+
     # Compile the generated C++ file
-    compile_command = ["g++", "output.cpp", "-o", f"{program_name}.out"]
     try:
         subprocess.run(compile_command, check=True)
-        print(f"Compilation successful. Executable created: ./{program_name}.out")
+        executable = f"{program_name}.exe" if is_windows else f"{program_name}.out"
+        print(f"Compilation successful. Executable created: ./{executable}")
     except subprocess.CalledProcessError as e:
         print(f"Compilation failed: {e}")
 

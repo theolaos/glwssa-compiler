@@ -17,12 +17,12 @@ class Tokenizer:
             ('INTEGERS', r'ΑΚΕΡΑΙΕΣ'),      # Integer type
             ('CHARACTERS', r'ΧΑΡΑΚΤΗΡΕΣ'),  # Character type
             ('REAL', r'ΠΡΑΓΜΑΤΙΚΕΣ'),       # Real type
-            ('LOGICAL', r'ΛΟΓΙΚΕΣ'),         # Logical type
+            ('LOGICAL', r'ΛΟΓΙΚΕΣ'),        # Logical type
 
             ('IF', r'ΑΝ'),                  # If statement
-            ('THEN', r'ΤΟΤΕ'),               # Then keyword
-            ('ELSE_IF', r'ΑΛΛΙΩΣ_ΑΝ'),               # Then keyword
-            ('ELSE', r'ΑΛΛΙΩΣ'),             # Else keyword
+            ('THEN', r'ΤΟΤΕ'),              # Then keyword
+            ('ELSE_IF', r'ΑΛΛΙΩΣ_ΑΝ'),      # Then keyword
+            ('ELSE', r'ΑΛΛΙΩΣ'),            # Else keyword
             ('END_IF', r'ΤΕΛΟΣ_ΑΝ'),        # End if
             
             ('FOR', r'ΓΙΑ'),

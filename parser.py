@@ -48,7 +48,7 @@ class Parser:
         self.current_token_index += 1
 
 
-    def process_expression(self, valid_tokens: set, end_tokens: set):
+    def process_expression(self, valid_tokens: set, end_tokens: set, expected_final_type: str):
         """
         Process an expression by iterating over tokens until an end token is encountered.
 

@@ -73,11 +73,9 @@ class Parser:
                 self.next_token()  # Skip '('
                 sub_expression = self.process_expression(valid_tokens, {'RPAREN'})
                 expression_tokens.append(f"({' '.join(sub_expression)})")
-
-
-            # elif token_type == 'RPAREN':
-            #     # Stop processing if a closing parenthesis is encountered
-            #     break
+            elif token_type == 'RPAREN':
+                # Stop processing if a closing parenthesis is encountered
+                break
             elif token_type == 'FLOAT':
                 # Convert Greek float format (e.g., 2,5) to C++ format (e.g., 2.5)
                 token_value = token_value.replace(',', '.')

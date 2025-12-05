@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from typing import Optional as _Optional
 from typing import Union as _Union
+from typing import List as _List
 
 class Node:
     ...
@@ -22,6 +23,8 @@ class Expression(Node):
 class Program:
     body: list[Statement]
 
+
+# Statements _______________________________________________________________________________________________
 
 @dataclass
 class Block(Statement):
@@ -125,7 +128,7 @@ class ParserAST:
 
     def current_token(self, index=0):
         if self.current_token_index < len(self.tokens):
-            return self.tokens[self.current_token_index+index]
+            return self.tokens[self.current_token_index + index]
         return None  # Return None if out of bounds
 
 
@@ -134,12 +137,50 @@ class ParserAST:
 
 
     def parse(self):
-        create_tree()
+        self.create_tree()
+        self.analyze_types_tree()
+        self.parse_tree()
 
 
     def create_tree(self) -> str:
-        self.program.body.append()
+        while self.current_token() and self.current_token()[0] not in end_tokens:
+            token_type, token_value = self.current_token()
+
+            if token_type not in valid_tokens.union({'LPAREN', 'RPAREN', 'BUILTIN_FUNCTION'}):
+                raise SyntaxError(f"Unexpected token type :'{token_type}' and value :'{token_value}' in expression")
+
+            if token_type == "LPAREN":
+                self.parse_expression()
+
+
+    def parse_declaration(self):
+        ...
+
+
+    def parse_assignment(self):
+        ...
+
+    
+    def parse_statement(self):
+        ...
+
+    
+    def parse_expression(self):
+        ...
+
+
+    def parse_binary_operation(self):
+        ... 
+
+
+    def parse_unary_operation(self):
+        ... 
+
 
 
     def analyze_types_tree(self, expected_final_type: str | None) -> str | None:
+        ...
+
+
+    def parse_tree(self) -> _List:
         ...

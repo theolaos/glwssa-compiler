@@ -1,3 +1,25 @@
+# MIT License
+
+# Copyright (c) 2025 Theolaos
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import re
 
 class Tokenizer:
@@ -13,6 +35,7 @@ class Tokenizer:
         }
         self.token_specification = [
             ('PROGRAM', r'ΠΡΟΓΡΑΜΜΑ'),      # Program declaration
+            ('START', r'ΑΡΧΗ'),             # Program code starts, and variable declaration is finished
             ('VARIABLES', r'ΜΕΤΑΒΛΗΤΕΣ'),   # Variables section
             ('INTEGERS', r'ΑΚΕΡΑΙΕΣ'),      # Integer type
             ('CHARACTERS', r'ΧΑΡΑΚΤΗΡΕΣ'),  # Character type
@@ -112,4 +135,34 @@ class Tokenizer:
 
             self.tokens.append((kind, value))
 
+        self._validate_order_and_uniqueness()
+
         return self.tokens
+    
+    
+    def _validate_order_and_uniqueness(self):
+        """
+        Enforce:
+         - 'START' must appear exactly once
+         - PROGRAM, VARIABLES, INTEGERS, CHARACTERS, REAL, LOGICAL must appear at most once
+           and (if present) must be located before 'START'
+        """
+        must_be_before_start = ['PROGRAM', 'VARIABLES', 'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL']
+        positions = {}
+        for idx, (kind, _) in enumerate(self.tokens):
+            positions.setdefault(kind, []).append(idx)
+
+        # START must appear exactly once
+        start_positions = positions.get('START', [])
+        if len(start_positions) != 1:
+            raise SyntaxError("Token 'ΑΡΧΗ' (START) must appear exactly once")
+
+        start_idx = start_positions[0]
+
+        # Each token in must_be_before_start must appear at most once and before START if present
+        for tk in must_be_before_start:
+            if tk in positions:
+                if len(positions[tk]) != 1:
+                    raise SyntaxError(f"Token '{tk}' must appear at most once")
+                if positions[tk][0] > start_idx:
+                    raise SyntaxError(f"Token '{tk}' must appear before 'ΑΡΧΗ' (START)")

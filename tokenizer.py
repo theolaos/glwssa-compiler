@@ -82,7 +82,7 @@ class Tokenizer:
             ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
 
             ('STRING', r'"[^"]*"'),
-            ('FLOAT', r'-?\d+\,\d+'),
+            ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'-?\d+'),
             ('BOOLEAN', r'ΑΛΗΘΗΣ|ΨΕΥΔΗΣ'),
 
@@ -132,8 +132,10 @@ class Tokenizer:
                 # Prefix English variable names with a distinct prefix
                 value = 'en_' + value
                 kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
+            elif kind == 'BOOLEAN':
+                value = 'true' if 'ΑΛΗΘΗΣ' else 'false'
 
-            self.tokens.append((kind, value))
+            self.tokens.append(tuple([kind, value]))
 
         self._validate_order_and_uniqueness()
 
@@ -156,6 +158,10 @@ class Tokenizer:
         start_positions = positions.get('START', [])
         if len(start_positions) != 1:
             raise SyntaxError("Token 'ΑΡΧΗ' (START) must appear exactly once")
+        start_positions = positions.get('PROGRAM', [])
+        if len(start_positions) != 1:
+            raise SyntaxError("Token 'ΠΡΟΓΡΑΜΜΑ' (PROGRAM) must appear exactly once")
+
 
         start_idx = start_positions[0]
 

@@ -16,3 +16,4 @@ __pycache__/*
 mingw64/*
 
 .vscode
+transpiler.log

@@ -25,7 +25,8 @@ import os
 
 from tokenizer import Tokenizer
 from parser import Parser
-from ast import ParserAST
+from ast import ParserAST, TranspilerBackend_cpp
+from log import set_global_tags, log, flush_log_file
 
 
 def main():
@@ -63,23 +64,45 @@ def main():
 
 
 def main_with_ast():
+    # v - verbose
+    # vd - variable declaration
+    flush_log_file()
+    set_global_tags(["v", "vd"])
+
+    log("From main func: main function started.", tags=["v"])
+
     code: str = ""
     compile_command: list[str] = []
     
     with open("file.glwssa") as program:
         code = program.read()
 
+    log("From main func: Code has been succesfully read", tags=["v"])
+
     tokenizer = Tokenizer(code)
     tokens = tokenizer.tokenize()
+    log("From main func: Code has been succesfully tokenized", tags=["v"])
 
     parser = ParserAST(tokens, tokenizer.token)
-    cpp_code, program_name = parser.parse()
+    log("From main func: The parser has been succesfully initialized", tags=["v"])
+    program_ast, program_name = parser.parse()
+    log("From main func: Code has been succesfully parsed", tags=["v"])
+    log("From main func: The program name is", program_name, tags=["v"])
+
+    backend = TranspilerBackend_cpp()
+    log("From main func: The backend has been succesfully initialized", tags=["v"])
+    cpp_code = backend.translate_tree(program_ast)
+    log("From main func: Code has been succesfully parsed", tags=["v"])
 
     with open("output.cpp", "w") as output_file:
         output_file.write(cpp_code)
 
+    log("From main func: The cpp code output has been transferred into the output.cpp file", tags=["v"])
+
     # Detect the operating system
     is_windows = os.name == "nt"
+
+    log("From main func: Detected OS is:", "Windows" if is_windows else "Linux", tags=["v"])
 
     # Set the compile command based on the OS
     if is_windows: # https://github.com/niXman/mingw-builds-binaries?tab=readme-ov-file
@@ -87,10 +110,14 @@ def main_with_ast():
     else:
         compile_command = ["g++", "output.cpp", "-o", f"{program_name}.out"]
 
+    log("From main func: Running this command:", compile_command, tags=["v"])
+
+
     # Compile the generated C++ file
     try:
         subprocess.run(compile_command, check=True)
         executable = f"{program_name}.exe" if is_windows else f"{program_name}.out"
+        log("From main func: The cpp code has been succesfully compiled into an executable, named:", executable, tags=["v"])
         print(f"Compilation successful. Executable created: ./{executable}")
     except subprocess.CalledProcessError as e:
         print(f"Compilation failed: {e}")

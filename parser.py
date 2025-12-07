@@ -99,7 +99,6 @@ class Parser:
                 # Stop processing if a closing parenthesis is encountered
                 break
             elif token_type == 'FLOAT':
-                # Convert Greek float format (e.g., 2,5) to C++ format (e.g., 2.5)
                 token_value = token_value.replace(',', '.')
                 expression_tokens.append(token_value)
             elif token_type == 'BUILTIN_FUNCTION':
@@ -125,7 +124,7 @@ class Parser:
             elif token_type == 'OP':
                 token_type, token_value = self.current_token()
 
-                print(token_value, 'operator found')
+                # print(token_value, 'operator found')
                 if token_value == '/':
                     print(' Division operator found, checking for float conversion...')
                     # Check the previous and next tokens for constants
@@ -265,7 +264,6 @@ class Parser:
             if token_type not in VALID_READ_WRITE_TOKENS:
                 raise SyntaxError(f"Unexpected token '{var_name}' in read command")
             if token_type == 'IDENTIFIER':
-                # Convert Greek variable names to English
                 read_tokens.append(var_name)
             self.next_token()  # Move to the next token
         self.cpp_code.append(f"std::cin >> {' >> '.join(read_tokens)};")

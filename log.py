@@ -22,28 +22,36 @@
 
 # logger.py
 import datetime
-from typing import Iterable
+from typing import Iterable as _Iterable
+from typing import Literal as _Literal
 
 # --- Global configuration ---
-LOG_FILE = "app.log"
-GLOBAL_TAGS: set[str] = set()       # Add tags here globally
-DEFAULT_OUTPUT = "both"             # "both", "file", "print"
+LOG_FILE = "transpiler.log"
+GLOBAL_TAGS: set[str] = set()                               # Add tags here globally
+DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "both"  # "both", "file", "print"
+LOGGING: bool = True
 
 
-def set_global_tags(tags: Iterable[str]):
+def flush_log_file():
+    with open(LOG_FILE, "w") as f:
+        f.write("")
+
+
+def set_global_tags(tags: _Iterable[str]):
     """Replace all global tags with the provided ones."""
     GLOBAL_TAGS.clear()
     GLOBAL_TAGS.update(tags)
 
 
-def add_global_tags(tags: Iterable[str]):
+def add_global_tags(tags: _Iterable[str]):
     """Add tags to the global set."""
     GLOBAL_TAGS.update(tags)
 
 
+
 def log(
     *args,
-    tags: Iterable[str] = (),
+    tags: _Iterable[str] = (),
     output: str | None = None
 ):
     """
@@ -57,6 +65,9 @@ def log(
         tags: iterable of tags such as ["network", "debug"]
         output: "both" (default), "file", or "print"
     """
+    # 0 early return if LOGGING has not been set to TRUE.
+    if not LOGGING:
+        return
 
     # 1. Determine output mode
     mode = output or DEFAULT_OUTPUT

@@ -32,9 +32,12 @@ VALID_PROCESS_EXPRESSION_TOKENS = {
 
 from dataclasses import dataclass
 
+from log import log
+
 from typing import Optional as _Optional
 from typing import Union as _Union
 from typing import List as _List
+from typing import Tuple as _Tuple
 
 class Node:
     ...
@@ -55,6 +58,38 @@ class Expression(Node):
 class Program:
     body: list[Statement]
 
+# Expressions __________________________________________________________________________________________
+@dataclass
+class Literal(Expression):
+    value: _Union[int, float, str, bool]
+
+
+@dataclass
+class ProgramName(Expression):
+    name: str
+
+
+@dataclass
+class Variable(Expression):
+    name: str
+    var_type: type
+
+
+@dataclass
+class BinaryOperation(Expression):
+    left: Expression
+    operator: str
+    right: Expression
+
+
+@dataclass
+class UnaryOperator(Expression):
+    operator: str
+    operand: Expression
+
+@dataclass
+class Parentheses(Expression):
+    exrpession: Expression
 
 # Statements _______________________________________________________________________________________________
 
@@ -128,59 +163,16 @@ class Write(Statement):
 
 @dataclass
 class Read(Statement):
-    expression: _List[Expression]
+    variable_list: _List[Variable]
 
 
 @dataclass
 class ExpressionStatement(Statement):
     expression: Expression
 
-# Expressions __________________________________________________________________________________________
 
-@dataclass
-class Literal(Expression):
-    value: _Union[int, float, str, bool]
-
-
-@dataclass
-class ProgramName(Expression):
-    name: str
-
-
-@dataclass
-class Variable(Expression):
-    name: str
-
-
-@dataclass
-class BinaryOperation(Expression):
-    left: Expression
-    operator: str
-    right: Expression
-
-
-@dataclass
-class UnaryOperator(Expression):
-    operator: str
-    operand: Expression
-
-
-
-class ParserAST:
-    def __init__(self, tokens, token):
-        self.program_tokens = tokens
-        self.tokens = token
-        self.program = Program()
-        self.current_token_index = 1
-        self.program_name = "a"
-        self.code: _List[str] = []
-        self.greek_to_english = {
-            'Α': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E',
-            'Ζ': 'Z', 'Η': 'H', 'Θ': 'TH', 'Ι': 'I', 'Κ': 'K',
-            'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O',
-            'Π': 'P', 'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y',
-            'Φ': 'F', 'Χ': 'CH', 'Ψ': 'PS', 'Ω': 'W'
-        }
+class TranspilerBackend_cpp:
+    def __init__(self):
         self.operator_mapping = {
             'NEQ': '!=',  # Not equal
             'EQ': '==',   # Equal
@@ -195,12 +187,27 @@ class ParserAST:
             'DIV': '/',   # Division operator
         }
 
+    def translate_tree(self, tree):
+        self.tree = tree
+
+        # translating
 
 
+class ParserAST:
+    def __init__(self, tokens, token):
+        self.program_tokens = tokens
+        self.tokens = token
 
-    def current_token(self, index=0):
-        if self.current_token_index < len(self.tokens):
-            return self.tokens[self.current_token_index + index]
+        self.variable_table: dict[str, type] = {}
+        self.program = Program([])
+        self.current_token_index = 0
+        self.program_name = "a"
+        self.code: _List[str] = []
+
+
+    def current_token(self, index=0) -> _Optional[_Tuple[str, str]]:
+        if self.current_token_index < len(self.program_tokens):
+            return self.program_tokens[self.current_token_index + index]
         return None  # Return None if out of bounds
 
 
@@ -211,28 +218,28 @@ class ParserAST:
     def parse(self):
         self.create_tree()
         self.analyze_types_tree()
-        self.parse_tree()
 
-        return self.code, self.program_name
+        return self.program, self.program_name
 
 
     def create_tree(self):
-        while self.current_token_index < len(self.tokens):
+        while self.current_token_index < len(self.program_tokens):
             token = self.current_token()
             if token is None:
                 break  # Exit if no more tokens
-            token_type, token_value = token
+
+            token_type, _ = token
             if token_type == 'PROGRAM':
-                self.tree_program_name()
+                self.parse_program_name()
             elif token_type == 'VARIABLES':
-                self.tree_declaration()
+                self.parse_declaration()
                 # print("Parsing variables...")
             elif token_type == 'READ':
-                self.tree_read()
+                self.parse_read()
             elif token_type == 'WRITE':
-                self.tree_write()
+                self.parse_write()
             elif token_type == 'ASSIGN':
-                self.tree_assignment()
+                self.parse_assignment()
             elif token_type == 'IF':
                 self.parse_if()
             elif token_type == 'END_PROGRAM':
@@ -243,11 +250,48 @@ class ParserAST:
                 self.next_token()  # Skip unhandled tokens
 
             # Stop parsing if the current token index reaches the last token
-            if self.current_token_index >= len(self.tokens):
+            if self.current_token_index >= len(self.program_tokens):
                 break
 
 
-    def tree_program_name(self):
+    def parse_expression(self, valid_tokens: set, end_tokens: set):
+        last = None
+        tree = None
+        
+        while self.current_token() and self.current_token()[0] not in end_tokens:
+            token_type, token_value = self.current_token()
+
+            # SyntaxError if we get the wrong token in the expression
+            if token_type not in valid_tokens.union({'LPAREN', 'RPAREN', 'BUILTIN_FUNCTION'}):
+                raise SyntaxError(f"Unexpected token type :'{token_type}' and value :'{token_value}' in expression")
+            
+            if token_type == 'LPAREN':
+                self.next_token()  # Skip '('
+                sub_tree = self.process_expression(valid_tokens, {'RPAREN'})
+                last = sub_tree
+            
+            elif token_type == 'FLOAT':
+                last = Literal(token_value)
+            elif token_type == 'NUMBER':
+                last = Literal(token_value)
+            elif token_type == 'STRING':
+                last = Literal(token_value)
+            elif token_type == 'BOOLEAN':
+                last = Literal(token_value)
+            elif token_type == 'IDENTIFIER':
+                try:
+                    last = Variable(token_value, self.variable_table[token_value])
+                except KeyError as e:
+                    raise SyntaxError(f"Variable {token_value} has not been declared in Variables section. ({e})")
+
+        # linter went bollocks
+        last
+
+
+        return tree
+
+
+    def parse_program_name(self):
         """
         Adds the first Node of the program, which should be the name.
 
@@ -261,9 +305,10 @@ class ParserAST:
             raise SyntaxError("Expected program name after 'ΠΡΟΓΡΑΜΜΑ'")
         _, self.program_name = self.current_token()
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
+        log("From parse_declaration: Su ", tags=["vd"])
 
 
-    def tree_declaration(self):
+    def parse_declaration(self):
         """
         There is a section in the code, named VARIABLES, where you put all the variables at.
 
@@ -272,6 +317,8 @@ class ParserAST:
         # skips the tokens that we do not need e.g. ['NEWLINE', 'VARIABLES']
         while self.current_token() and self.current_token()[0] in ['NEWLINE', 'VARIABLES']:
             self.next_token()
+        
+        log("From parse_declaration: Started Variable ", tags=["vd"])
 
         VALID_VARIABLE_TYPES = {'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL'}
 
@@ -279,16 +326,24 @@ class ParserAST:
             token_type, _ = self.current_token()
 
             if token_type == 'INTEGERS':
-                for name in range(self.read_variable_list()):
+                for name in self.read_variable_list():
+                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: int", tags=["vd"])
+                    self.variable_table[name] = int
                     self.program.body.append(VariableDeclaration(name, int))
             elif token_type == 'CHARACTERS':
-                for name in range(self.read_variable_list()):
+                for name in self.read_variable_list():
+                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: str", tags=["vd"])
+                    self.variable_table[name] = str
                     self.program.body.append(VariableDeclaration(name, str))
             elif token_type == 'REAL':
-                for name in range(self.read_variable_list()):
+                for name in self.read_variable_list():
+                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: float", tags=["vd"])
+                    self.variable_table[name] = float
                     self.program.body.append(VariableDeclaration(name, float))
             elif token_type == 'LOGICAL':
-                for name in range(self.read_variable_list()):
+                for name in self.read_variable_list():
+                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: bool", tags=["vd"])
+                    self.variable_table[name] = bool
                     self.program.body.append(VariableDeclaration(name, bool))
             else:
                 raise SyntaxError(f"Unexpected variable type '{token_type}'")
@@ -297,6 +352,8 @@ class ParserAST:
 
 
     def read_variable_list(self):
+        log("From read_variable_list: Parsing the variable list", tags=["vd"])
+
         variables = []
         self.next_token()  # Skip the type token (e.g., 'ΑΚΕΡΑΙΕΣ')
 
@@ -315,40 +372,69 @@ class ParserAST:
 
         if not variables:
             raise SyntaxError("Expected at least one variable name")
+        
+        log("From parse_declaration: Found these variables:", variables, tags=["vd"])
+        
         return variables
     
 
-    def tree_write(self):
-        ...
+    def parse_read(self):
+        self.next_token()  # Skip 'ΔΙΑΒΑΣΕ'
+
+        VALID_READ_WRITE_TOKENS = {'IDENTIFIER', 'COMMA'}
+        read = Read()
+        while self.current_token() and self.current_token()[0] != 'NEWLINE':
+            token_type, var_name = self.current_token()
+            if token_type not in VALID_READ_WRITE_TOKENS:
+                raise SyntaxError(f"Unexpected token '{var_name}' in read command.")
+            if token_type == 'IDENTIFIER':
+                try:
+                    read.variable_list.append(Variable(var_name, self.variable_table[var_name]))
+                except KeyError as e:
+                    raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
+
+            self.next_token()  # Move to the next token
+        
+        self.program.body.append(read)
 
 
-    def tree_read(self):
-        ...
+    def parse_write(self):
+        VALID_READ_WRITE_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
+        END_TOKENS = {'NEWLINE', 'COMMA'}
 
+        self.next_token()  # Skip 'ΓΡΑΨΕ'
+        write = Write()
 
-    def tree_assignment(self):
+        while self.current_token() and self.current_token()[0] != 'NEWLINE':
+            # Process each part of the expression until a comma or newline is encountered
+            part_tokens = self.parse_expression(VALID_READ_WRITE_TOKENS, END_TOKENS)
+            write.expression.append()
+
+            # If the current token is a comma, skip it and continue
+            if self.current_token() and self.current_token()[0] == 'COMMA':
+                self.next_token()
+
+        self.program.body.append(write)
+
+    def parse_assignment(self):
         ...
 
     
-    def tree_statement(self):
+    def parse_statement(self):
         ...
 
     
-    def tree_expression(self):
+    def parse_expression(self):
         ...
 
 
-    def tree_binary_operation(self):
+    def parse_binary_operation(self):
         ... 
 
 
-    def tree_unary_operation(self):
+    def parse_unary_operation(self):
         ... 
 
 
     def analyze_types_tree(self, expected_final_type: str | None) -> str | None:
-        ...
-
-
-    def parse_tree(self) -> _List:
         ...

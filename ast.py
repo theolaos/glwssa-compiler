@@ -59,9 +59,22 @@ class Program:
     body: list[Statement]
 
 # Expressions __________________________________________________________________________________________
+
 @dataclass
 class Literal(Expression):
     value: _Union[int, float, str, bool]
+
+@dataclass
+class String(Literal):
+    value: str
+
+@dataclass
+class Number(Literal):
+    value: _Union[int, float]
+
+@dataclass
+class Boolean(Literal):
+    value: bool
 
 
 @dataclass
@@ -256,7 +269,10 @@ class ParserAST:
 
     def parse_expression(self, valid_tokens: set, end_tokens: set):
         last = None
+        last_op = None
         tree = None
+        empty_node = False
+        empty_node_tree_pos = 0
         
         while self.current_token() and self.current_token()[0] not in end_tokens:
             token_type, token_value = self.current_token()
@@ -271,23 +287,50 @@ class ParserAST:
                 last = sub_tree
             
             elif token_type == 'FLOAT':
-                last = Literal(token_value)
+                last = Number(token_value)
             elif token_type == 'NUMBER':
-                last = Literal(token_value)
+                last = Number(token_value)
             elif token_type == 'STRING':
-                last = Literal(token_value)
+                last = String(token_value)
             elif token_type == 'BOOLEAN':
-                last = Literal(token_value)
+                last = Boolean(token_value)
             elif token_type == 'IDENTIFIER':
                 try:
                     last = Variable(token_value, self.variable_table[token_value])
                 except KeyError as e:
                     raise SyntaxError(f"Variable {token_value} has not been declared in Variables section. ({e})")
+            # Finding the Operations to create the tree
+            elif token_type == 'OP':
+                if tree == None and last_op == None:
+                    if last == None:
+                        raise SyntaxError(f"Cannot run '{token_value}'. It needs a variable or a value on the left.")
+                    tree = BinaryOperation(last, token_value, None)
+                    last_op = token_value
+                    empty_node = True
+                    empty_node_tree_pos = 0
+                elif token_value == last_op and token_value != '^':
+                    tree.right = last
+                    tree = BinaryOperation(tree, token_value, None)
+                    empty_node = True
+                    empty_node_tree_pos = 0
+                elif token_value == last_op and token_value == '^':
+                    tree.right = BinaryOperation(last, token_value, None)
+                    empty_node = True
+                    empty_node_tree_pos = 1
+        
+        # filling in the last 
+        for i in range(empty_node_tree_pos):
+            tree.right = last
+
+            
+            self.next_token()
+
 
         # linter went bollocks
         last
+        empty_node
 
-
+        print(tree)
         return tree
 
 

@@ -104,9 +104,9 @@ class Parser:
             elif token_type == 'BUILTIN_FUNCTION':
                 # Handle built-in functions
                 function_name = {
-                    'Α_Τ': 'std::abs',
-                    'Α_Μ': 'std::floor',
-                    'Τ_Ρ': 'std::sqrt'
+                    'Α_Τ': 'std::abs', # απόλυτη τιμή
+                    'Α_Μ': 'std::floor', # ακέραιο μέρος
+                    'Τ_Ρ': 'std::sqrt' # τετραγωνική ρίζα
                 }.get(token_value, token_value)
                 self.next_token()  # Skip the function name
                 if not self.current_token() or self.current_token()[0] != 'LPAREN':

@@ -91,9 +91,7 @@ class Tokenizer:
 
             ('LPAREN', r'\('),
             ('RPAREN', r'\)'),
-            ('OP', r'[+\-*/]'),             # Arithmetic operators
-            ('MOD', r'MOD'),                  # Modulus operator
-            ('DIV', r'DIV'),                  # Integer division operator
+            ('OP', r'[+\-*/^]|MOD|DIV'),             # Arithmetic operators
 
             ('COMMENT', r'!.*'),
             ('WHITESPACE', r'[ \t]+'),

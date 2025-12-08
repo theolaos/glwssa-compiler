@@ -257,7 +257,6 @@ class ParserAST:
                 self.parse_if()
             elif token_type == 'END_PROGRAM':
                 print("End of program reached.")
-                self.cpp_code.append("return 0;\n}")
                 self.next_token()  # Advance to the next token
             else:
                 self.next_token()  # Skip unhandled tokens
@@ -267,71 +266,89 @@ class ParserAST:
                 break
 
 
-    def parse_expression(self, valid_tokens: set, end_tokens: set):
-        last = None
-        last_op = None
-        tree = None
-        empty_node = False
-        empty_node_tree_pos = 0
-        
-        while self.current_token() and self.current_token()[0] not in end_tokens:
-            token_type, token_value = self.current_token()
-
-            # SyntaxError if we get the wrong token in the expression
-            if token_type not in valid_tokens.union({'LPAREN', 'RPAREN', 'BUILTIN_FUNCTION'}):
-                raise SyntaxError(f"Unexpected token type :'{token_type}' and value :'{token_value}' in expression")
-            
-            if token_type == 'LPAREN':
-                self.next_token()  # Skip '('
-                sub_tree = self.process_expression(valid_tokens, {'RPAREN'})
-                last = sub_tree
-            
-            elif token_type == 'FLOAT':
-                last = Number(token_value)
-            elif token_type == 'NUMBER':
-                last = Number(token_value)
-            elif token_type == 'STRING':
-                last = String(token_value)
-            elif token_type == 'BOOLEAN':
-                last = Boolean(token_value)
-            elif token_type == 'IDENTIFIER':
-                try:
-                    last = Variable(token_value, self.variable_table[token_value])
-                except KeyError as e:
-                    raise SyntaxError(f"Variable {token_value} has not been declared in Variables section. ({e})")
-            # Finding the Operations to create the tree
-            elif token_type == 'OP':
-                if tree == None and last_op == None:
-                    if last == None:
-                        raise SyntaxError(f"Cannot run '{token_value}'. It needs a variable or a value on the left.")
-                    tree = BinaryOperation(last, token_value, None)
-                    last_op = token_value
-                    empty_node = True
-                    empty_node_tree_pos = 0
-                elif token_value == last_op and token_value != '^':
-                    tree.right = last
-                    tree = BinaryOperation(tree, token_value, None)
-                    empty_node = True
-                    empty_node_tree_pos = 0
-                elif token_value == last_op and token_value == '^':
-                    tree.right = BinaryOperation(last, token_value, None)
-                    empty_node = True
-                    empty_node_tree_pos = 1
-        
-        # filling in the last 
-        for i in range(empty_node_tree_pos):
-            tree.right = last
-
-            
-            self.next_token()
-
-
-        # linter went bollocks
-        last
-        empty_node
-
+    def parse_expression(self):
+        tree = self.parse_expr()
         print(tree)
         return tree
+
+
+    def expect(self, expected_type) -> None:
+        """
+        Checks token, and raises an exception if it is not expected.
+
+        Progresses the token.
+        """
+        if self.current_token()[0] != expected_type:
+            raise SyntaxError(f"Expected {expected_type}")
+        self.next_token()
+
+
+    def parse_expr(self):
+        """
+        EXPR: term ADDITION | SUBTRACTION
+        TERM: factor MUL | DIV
+        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
+        """        
+        node = self.parse_term()
+
+        token_type, token_value = self.current_token()
+        while token_type in {'PLUS', 'MINUS'}:
+
+            op = token_type
+            self.expect(token_type)
+
+            right = self.parse_term()
+            node = BinaryOperation(left=node, operator=op, right=right)
+
+            token_type, token_value = self.current_token()
+
+        return node
+
+
+    def parse_term(self):
+        node = self.parse_factor()
+    
+        token_type, token_value = self.current_token()
+        while token_type in {'MUL', 'FDIV', 'IDIV', 'MOD'}:
+        
+            op = token_type
+            self.expect(token_type)
+    
+            right = self.parse_factor()
+            node = BinaryOperation(left=node, operator=op, right=right)
+    
+            token_type, token_value = self.current_token()
+    
+        return node
+
+
+    def parse_condition(self):
+        ...
+
+
+    def parse_logical(self):
+        ...
+
+
+    def parse_factor(self):
+        """
+        Simple numbers (0-9) INT, FLOAT
+        And parenetheses LPAREN and RPAREN
+        """
+        token_type, token_value = self.current_token()
+
+        if token_type == "NUMBER":
+            self.expect("NUMBER")
+            return Number(token_value)
+
+        elif token_type == "LPAREN":
+            self.expect("LPAREN")
+            node = self.parse_expr()
+            self.expect("RPAREN")
+            return node
+
+        else:
+            raise SyntaxError(f"Unexpected token: {token_type}")
 
 
     def parse_program_name(self):
@@ -348,7 +365,7 @@ class ParserAST:
             raise SyntaxError("Expected program name after 'ΠΡΟΓΡΑΜΜΑ'")
         _, self.program_name = self.current_token()
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
-        log("From parse_declaration: Su ", tags=["vd"])
+        log("From parse_declaration: Succesfully parsed program name ", tags=["vd"])
 
 
     def parse_declaration(self):
@@ -446,18 +463,22 @@ class ParserAST:
         END_TOKENS = {'NEWLINE', 'COMMA'}
 
         self.next_token()  # Skip 'ΓΡΑΨΕ'
-        write = Write()
-
+        expr_list: _List[Expression] = []
+        
         while self.current_token() and self.current_token()[0] != 'NEWLINE':
             # Process each part of the expression until a comma or newline is encountered
-            part_tokens = self.parse_expression(VALID_READ_WRITE_TOKENS, END_TOKENS)
-            write.expression.append()
+            part_tokens = self.parse_expression()
+            print(part_tokens)
+            expr_list.append(part_tokens)
 
             # If the current token is a comma, skip it and continue
             if self.current_token() and self.current_token()[0] == 'COMMA':
                 self.next_token()
 
-        self.program.body.append(write)
+
+        self.program.body.append(Write(expr_list))
+
+
 
     def parse_assignment(self):
         ...
@@ -466,18 +487,6 @@ class ParserAST:
     def parse_statement(self):
         ...
 
-    
-    def parse_expression(self):
-        ...
 
-
-    def parse_binary_operation(self):
-        ... 
-
-
-    def parse_unary_operation(self):
-        ... 
-
-
-    def analyze_types_tree(self, expected_final_type: str | None) -> str | None:
+    def analyze_types_tree(self, expected_final_type: str | None = None) -> str | None:
         ...

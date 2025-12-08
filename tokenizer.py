@@ -76,7 +76,7 @@ class Tokenizer:
 
             ('PROCEDURE', r'ΔΙΑΔΙΚΑΣΙΑ'),
             ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),
-            ('BUILTIN_FUNCTION', r'Α_Μ|Α_Τ|Τ_Ρ'),
+            ('BUILTIN_FUNCTION', r'Α_Μ|Α_Τ|Τ_Ρ'), # It might be better to use multiple different tokens for each built in function
 
             ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
             ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
@@ -91,7 +91,14 @@ class Tokenizer:
 
             ('LPAREN', r'\('),
             ('RPAREN', r'\)'),
-            ('OP', r'[+\-*/^]|MOD|DIV'),             # Arithmetic operators
+            ('PLUS', r'\+'),
+            ('MINUS', r'\-'),
+            ('MUL', r'\*'),
+            ('FDIV', r'\/'),
+            ('POW', r'^'),
+            ('MOD', r'MOD'),
+            ('IDIV', r'DIV'),
+
 
             ('COMMENT', r'!.*'),
             ('WHITESPACE', r'[ \t]+'),

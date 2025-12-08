@@ -78,9 +78,6 @@ class Tokenizer:
             ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),
             ('BUILTIN_FUNCTION', r'Α_Μ|Α_Τ|Τ_Ρ'), # It might be better to use multiple different tokens for each built in function
 
-            ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
-            ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
-
             ('STRING', r'"[^"]*"'),
             ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'-?\d+'),
@@ -99,6 +96,8 @@ class Tokenizer:
             ('MOD', r'MOD'),
             ('IDIV', r'DIV'),
 
+            ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
+            ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
 
             ('COMMENT', r'!.*'),
             ('WHITESPACE', r'[ \t]+'),

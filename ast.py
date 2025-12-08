@@ -283,10 +283,11 @@ class ParserAST:
         self.next_token()
 
 
-    def parse_expr(self):
+    def parse_expr(self) -> _Union[BinaryOperation, Expression]:
         """
-        EXPR: term ADDITION | SUBTRACTION
-        TERM: factor MUL | DIV
+        EXPR: term, ADDITION | SUBTRACTION
+        TERM: power, MUL | DIV
+        POWER: factor, POW = ^
         FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
         """        
         node = self.parse_term()
@@ -305,8 +306,8 @@ class ParserAST:
         return node
 
 
-    def parse_term(self):
-        node = self.parse_factor()
+    def parse_term(self) -> _Union[BinaryOperation, Expression]:
+        node = self.parse_power()
     
         token_type, token_value = self.current_token()
         while token_type in {'MUL', 'FDIV', 'IDIV', 'MOD'}:
@@ -314,11 +315,27 @@ class ParserAST:
             op = token_type
             self.expect(token_type)
     
-            right = self.parse_factor()
+            right = self.parse_power()
             node = BinaryOperation(left=node, operator=op, right=right)
     
             token_type, token_value = self.current_token()
     
+        return node
+
+    
+    def parse_power(self) -> _Union[BinaryOperation]:
+        node = self.parse_factor()
+
+        token_type, token_value = self.current_token()
+        while token_type in {'POW'}:
+            op = token_type
+            self.expect(token_type)
+            
+            left = self.parse_factor()
+            node = BinaryOperation(left=left, operator=op, right=node)
+        
+            token_type, token_value = self.current_token()
+
         return node
 
 
@@ -330,7 +347,7 @@ class ParserAST:
         ...
 
 
-    def parse_factor(self):
+    def parse_factor(self) -> _Union[Number, Expression]:
         """
         Simple numbers (0-9) INT, FLOAT
         And parenetheses LPAREN and RPAREN
@@ -348,7 +365,7 @@ class ParserAST:
             return node
 
         else:
-            raise SyntaxError(f"Unexpected token: {token_type}")
+            raise SyntaxError(f"Unexpected token: {token_type}, with value: {token_value}")
 
 
     def parse_program_name(self):

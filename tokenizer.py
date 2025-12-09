@@ -143,7 +143,7 @@ class Tokenizer:
 
         self._validate_order_and_uniqueness()
 
-        print(self.tokens)
+        log(self.tokens, tags=['atok'])
 
         return self.tokens
     

@@ -66,6 +66,8 @@ def main():
 def main_with_ast():
     # v - verbose
     # vd - variable declaration
+    # tok - tokens
+    # atok - logs all the tokens of the loaded program
     flush_log_file()
     set_global_tags(["v", "vd"])
 

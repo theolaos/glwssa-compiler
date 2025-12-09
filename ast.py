@@ -267,7 +267,17 @@ class ParserAST:
 
 
     def parse_expression(self):
-        tree = self.parse_expr()
+        """
+        OR: and, OR = Ή
+        AND: not, AND = KAI
+        NOT: condition, NOT = ΟΧΙ (unary expression)
+        CONDITION: expr, > | < | >= | <= | == | !=
+        EXPR: term, ADDITION | SUBTRACTION
+        TERM: power, MUL | DIV
+        POWER: factor, POW = ^
+        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
+        """        
+        tree = self.parse_logical_or()
         print(tree)
         return tree
 
@@ -283,13 +293,52 @@ class ParserAST:
         self.next_token()
 
 
-    def parse_expr(self) -> _Union[BinaryOperation, Expression]:
+    def parse_logical_or(self):
+        node = self.parse_logical_and()
+
+        token_type, token_value = self.current_token()
+        while token_type == 'OR':
+            self.expect('OR')
+            node = BinaryOperation(left=node, operator='OR', right=self.parse_logical_and())
+
+            token_type, token_value = self.current_token()
+
+        return node
+
+
+    def parse_logical_and(self):
+        node = self.parse_condition()
+
+        token_type, token_value = self.current_token()
+        while token_type == 'AND':
+            self.expect('AND')
+            node = BinaryOperation(left=node, operator='AND', right=self.parse_condition())
+
+            token_type, token_value = self.current_token()
+
+        return node
+
+
+    def parse_condition(self):
         """
-        EXPR: term, ADDITION | SUBTRACTION
-        TERM: power, MUL | DIV
-        POWER: factor, POW = ^
-        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
-        """        
+        Every condition should be here. One condition is not better than any other.
+        """
+        node = self.parse_expr()
+
+        token_type, token_value = self.current_token()
+        while token_type in {'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}:
+            op = token_type
+            self.expect(token_type)
+            
+            right = self.parse_expr()
+            node = BinaryOperation(left=node, operator=op, right=right)
+
+            token_type, token_value = self.current_token()
+
+        return node
+
+
+    def parse_expr(self) -> _Union[BinaryOperation, Expression]:
         node = self.parse_term()
 
         token_type, token_value = self.current_token()
@@ -324,27 +373,33 @@ class ParserAST:
 
     
     def parse_power(self) -> _Union[BinaryOperation]:
-        node = self.parse_factor()
+        node = self.parse_unary()
 
         token_type, token_value = self.current_token()
-        while token_type in {'POW'}:
-            op = token_type
-            self.expect(token_type)
+        while token_type == 'POW':
+            self.expect('POW')
             
-            left = self.parse_factor()
-            node = BinaryOperation(left=left, operator=op, right=node)
+            right = self.parse_power()
+            node = BinaryOperation(left=node, operator='POW', right=right)
         
             token_type, token_value = self.current_token()
 
         return node
 
 
-    def parse_condition(self):
-        ...
+    def parse_unary(self):
+        token_type, token_value = self.current_token()
+        while token_type in {'NOT','MINUS'}:
+            if token_type == 'NOT':
+                self.expect('NOT')
+                operand = self.parse_unary()
+                return UnaryOperator(operator='NOT', operand=operand) 
+            elif token_type == 'MINUS':
+                self.expect('MINUS')
+                operand = self.parse_unary()
+                return UnaryOperator(operator='MINUS', operand=operand) 
 
-
-    def parse_logical(self):
-        ...
+        return self.parse_factor()
 
 
     def parse_factor(self) -> _Union[Number, Expression]:

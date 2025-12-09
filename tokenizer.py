@@ -80,7 +80,7 @@ class Tokenizer:
 
             ('STRING', r'"[^"]*"'),
             ('FLOAT', r'-?\d+\.\d+'),
-            ('NUMBER', r'-?\d+'),
+            ('NUMBER', r'\d+'), # The + in regex means that all the sequential numebrs are counted as one
             ('BOOLEAN', r'ΑΛΗΘΗΣ|ΨΕΥΔΗΣ'),
 
             ('COLON', r':'),
@@ -92,7 +92,7 @@ class Tokenizer:
             ('MINUS', r'\-'),
             ('MUL', r'\*'),
             ('FDIV', r'\/'),
-            ('POW', r'^'),
+            ('POW', r'\^'),
             ('MOD', r'MOD'),
             ('IDIV', r'DIV'),
 
@@ -142,6 +142,8 @@ class Tokenizer:
             self.tokens.append(tuple([kind, value]))
 
         self._validate_order_and_uniqueness()
+
+        print(self.tokens)
 
         return self.tokens
     

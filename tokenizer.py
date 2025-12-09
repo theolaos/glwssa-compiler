@@ -22,6 +22,8 @@
 
 import re
 
+from log import log
+
 class Tokenizer:
     def __init__(self, code):
         self.code = code
@@ -72,7 +74,7 @@ class Tokenizer:
             
             ('NOT', r'ΟΧΙ'),
             ('AND', r'ΚΑΙ'),
-            ('OR', r'Ή'),
+            ('OR', r'(?<=\s)Η(?=\s)|(?<=\s)Ή(?=\s)'),
 
             ('PROCEDURE', r'ΔΙΑΔΙΚΑΣΙΑ'),
             ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),
@@ -81,7 +83,7 @@ class Tokenizer:
             ('STRING', r'"[^"]*"'),
             ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'\d+'), # The + in regex means that all the sequential numebrs are counted as one
-            ('BOOLEAN', r'ΑΛΗΘΗΣ|ΨΕΥΔΗΣ'),
+            ('BOOLEAN', r'(?<=\s)ΑΛΗΘΗΣ(?=\s)|(?<=\s)ΨΕΥΔΗΣ(?=\s)'),
 
             ('COLON', r':'),
             ('COMMA', r','),
@@ -141,9 +143,9 @@ class Tokenizer:
 
             self.tokens.append(tuple([kind, value]))
 
+        log(self.tokens, tags=['atok'])
         self._validate_order_and_uniqueness()
 
-        log(self.tokens, tags=['atok'])
 
         return self.tokens
     
@@ -160,16 +162,17 @@ class Tokenizer:
         for idx, (kind, _) in enumerate(self.tokens):
             positions.setdefault(kind, []).append(idx)
 
+        start_positions = positions.get('PROGRAM', [])
+        if len(start_positions) != 1:
+            raise SyntaxError("Token 'ΠΡΟΓΡΑΜΜΑ' (PROGRAM) must appear exactly once")
         # START must appear exactly once
         start_positions = positions.get('START', [])
         if len(start_positions) != 1:
             raise SyntaxError("Token 'ΑΡΧΗ' (START) must appear exactly once")
-        start_positions = positions.get('PROGRAM', [])
-        if len(start_positions) != 1:
-            raise SyntaxError("Token 'ΠΡΟΓΡΑΜΜΑ' (PROGRAM) must appear exactly once")
 
 
         start_idx = start_positions[0]
+        print(start_positions)
 
         # Each token in must_be_before_start must appear at most once and before START if present
         for tk in must_be_before_start:

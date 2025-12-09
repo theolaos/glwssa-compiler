@@ -281,6 +281,7 @@ class ParserAST:
         print(tree)
         return tree
 
+    # __________________________________________________________________________________________________
 
     def expect(self, expected_type) -> None:
         """
@@ -412,6 +413,17 @@ class ParserAST:
         if token_type == "NUMBER":
             self.expect("NUMBER")
             return Number(token_value)
+        
+        elif token_type == "BOOLEAN":
+            self.expect("BOOLEAN")
+            return Boolean(token_value)
+
+        elif token_type == "IDENTIFIER":
+            self.expect("IDENTIFIER")
+            
+            if not self.variable_table.get(token_value, False):
+                raise SyntaxError(f"Variable {token_value} does not exist.")
+            return Variable(token_value, self.variable_table[token_value])
 
         elif token_type == "LPAREN":
             self.expect("LPAREN")
@@ -421,6 +433,9 @@ class ParserAST:
 
         else:
             raise SyntaxError(f"Unexpected token: {token_type}, with value: {token_value}")
+
+
+    # __________________________________________________________________________________________________
 
 
     def parse_program_name(self):
@@ -549,7 +564,6 @@ class ParserAST:
 
 
         self.program.body.append(Write(expr_list))
-
 
 
     def parse_assignment(self):

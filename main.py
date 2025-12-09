@@ -25,7 +25,7 @@ import os
 
 from tokenizer import Tokenizer
 from parser import Parser
-from ast import ParserAST, TranspilerBackend_cpp
+from parser_ast import ParserAST, TranspilerBackend_cpp
 from log import set_global_tags, log, flush_log_file
 
 

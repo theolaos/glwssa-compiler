@@ -24,6 +24,19 @@ import re
 
 from log import log
 
+
+def gsk(keyword: str) -> str:
+    """
+    Glwssa Standalone Keyword function.
+    
+    :param keyword: the standalone keyword
+    :type keyword: str
+    :return: returns a regex expression that only detects the standalone keyword
+    :rtype: str
+    """
+    return f"(?<![A-Za-zΑ-Ωα-ω0-9_]){keyword}(?![A-Za-zΑ-Ωα-ω0-9_])"
+
+
 class Tokenizer:
     def __init__(self, code):
         self.code = code
@@ -36,33 +49,33 @@ class Tokenizer:
             'Φ': 'F', 'Χ': 'CH', 'Ψ': 'PS', 'Ω': 'W'
         }
         self.token_specification = [
-            ('PROGRAM', r'ΠΡΟΓΡΑΜΜΑ'),      # Program declaration
-            ('START', r'ΑΡΧΗ'),             # Program code starts, and variable declaration is finished
-            ('VARIABLES', r'ΜΕΤΑΒΛΗΤΕΣ'),   # Variables section
-            ('INTEGERS', r'ΑΚΕΡΑΙΕΣ'),      # Integer type
-            ('CHARACTERS', r'ΧΑΡΑΚΤΗΡΕΣ'),  # Character type
-            ('REAL', r'ΠΡΑΓΜΑΤΙΚΕΣ'),       # Real type
-            ('LOGICAL', r'ΛΟΓΙΚΕΣ'),        # Logical type
+            ('PROGRAM', fr'{gsk('ΠΡΟΓΡΑΜΜΑ')}'),      # Program declaration
+            ('START', fr'{gsk('ΑΡΧΗ')}'),             # Program code starts, and variable declaration is finished
+            ('VARIABLES', fr'{gsk('ΜΕΤΑΒΛΗΤΕΣ')}'),   # Variables section
+            ('INTEGERS', fr'{gsk('ΑΚΕΡΑΙΕΣ')}'),      # Integer type
+            ('CHARACTERS', fr'{gsk('ΧΑΡΑΚΤΗΡΕΣ')}'),  # Character type
+            ('REAL', fr'{gsk('ΠΡΑΓΜΑΤΙΚΕΣ')}'),       # Real type
+            ('LOGICAL', fr'{gsk('ΛΟΓΙΚΕΣ')}'),        # Logical type
 
-            ('IF', r'ΑΝ'),                  # If statement
-            ('THEN', r'ΤΟΤΕ'),              # Then keyword
-            ('ELSE_IF', r'ΑΛΛΙΩΣ_ΑΝ'),      # Then keyword
-            ('ELSE', r'ΑΛΛΙΩΣ'),            # Else keyword
-            ('END_IF', r'ΤΕΛΟΣ_ΑΝ'),        # End if
+            ('IF', fr'{gsk('ΑΝ')}'),                  # If statement
+            ('THEN', fr'{gsk('ΤΟΤΕ')}'),              # Then keyword
+            ('ELSE_IF', fr'{gsk('ΑΛΛΙΩΣ_ΑΝ')}'),      # Then keyword
+            ('ELSE', fr'{gsk('ΑΛΛΙΩΣ')}'),            # Else keyword
+            ('END_IF', fr'{gsk('ΤΕΛΟΣ_ΑΝ')}'),        # End if
             
-            ('FOR', r'ΓΙΑ'),
-            ('FROM', r'ΑΠΟ'),
-            ('TO', r'ΜΕΧΡΙ'),
-            ('STEP', r'ΜΕ_ΒΗΜΑ'),
+            ('FOR', fr'{gsk('ΓΙΑ')}'),
+            ('FROM', fr'{gsk('ΑΠΟ')}'),
+            ('TO', fr'{gsk('ΜΕΧΡΙ')}'),
+            ('STEP', fr'{gsk('ΜΕ_ΒΗΜΑ')}'),
 
-            ('WHILE', r'ΟΣΟ'),
-            ('REPEAT', r'ΕΠΑΝΑΛΑΒΕ'),
+            ('WHILE', fr'{gsk('ΟΣΟ')}'),
+            ('REPEAT', fr'{gsk('ΕΠΑΝΑΛΑΒΕ')}'),
 
-            ('END_PROGRAM', r'ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ'),
+            ('END_PROGRAM', fr'{gsk('ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ')}'),
 
             ('ASSIGN', r'<--'),             # Assignment operator
-            ('READ', r'ΔΙΑΒΑΣΕ'),           # Read input
-            ('WRITE', r'ΓΡΑΨΕ'),            # Write output
+            ('READ', fr'{gsk('ΔΙΑΒΑΣΕ')}'),           # Read input
+            ('WRITE', fr'{gsk('ΓΡΑΨΕ')}'),            # Write output
 
 
             ('NEQ', r'(?<!<)<>(?!>)'),      # Match '<>' only if not part of a larger token
@@ -72,18 +85,18 @@ class Tokenizer:
             ('LT', r'<'),                   # Less than
             ('EQ', r'='),                   # Equal to
             
-            ('NOT', r'ΟΧΙ'),
-            ('AND', r'ΚΑΙ'),
-            ('OR', r'(?<=\s)Η(?=\s)|(?<=\s)Ή(?=\s)'),
+            ('NOT', fr'{gsk('ΟΧΙ')}'),
+            ('AND', fr'{gsk('ΚΑΙ')}'),
+            ('OR', fr'{gsk('Ή')}|{gsk('Η')}'),
 
-            ('PROCEDURE', r'ΔΙΑΔΙΚΑΣΙΑ'),
-            ('FUNCTION', r'ΣΥΝΑΡΤΗΣΗ'),
-            ('BUILTIN_FUNCTION', r'Α_Μ|Α_Τ|Τ_Ρ'), # It might be better to use multiple different tokens for each built in function
+            ('PROCEDURE', fr'{gsk('ΔΙΑΔΙΚΑΣΙΑ')}'),
+            ('FUNCTION', fr'{gsk('ΣΥΝΑΡΤΗΣΗ')}'),
+            ('BUILTIN_FUNCTION', fr'{gsk('Α_Μ')}|{gsk('Τ_Ρ')}|{gsk('Α_Τ')}'), # It might be better to use multiple different tokens for each built in function
 
             ('STRING', r'"[^"]*"'),
             ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'\d+'), # The + in regex means that all the sequential numebrs are counted as one
-            ('BOOLEAN', r'(?<=\s)ΑΛΗΘΗΣ(?=\s)|(?<=\s)ΨΕΥΔΗΣ(?=\s)'),
+            ('BOOLEAN', fr'{gsk('ΑΛΗΘΗΣ')}|{gsk('ΨΕΥΔΗΣ')}'),
 
             ('COLON', r':'),
             ('COMMA', r','),
@@ -95,8 +108,8 @@ class Tokenizer:
             ('MUL', r'\*'),
             ('FDIV', r'\/'),
             ('POW', r'\^'),
-            ('MOD', r'MOD'),
-            ('IDIV', r'DIV'),
+            ('MOD', fr'{gsk('MOD')}'),
+            ('IDIV', fr'{gsk('DIV')}'),
 
             ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
             ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
@@ -139,7 +152,8 @@ class Tokenizer:
                 value = 'en_' + value
                 kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
             elif kind == 'BOOLEAN':
-                value = 'true' if 'ΑΛΗΘΗΣ' else 'false'
+                print(kind, value)
+                value = 'true' if 'ΑΛΗΘΗΣ' == value else 'false'
 
             self.tokens.append(tuple([kind, value]))
 

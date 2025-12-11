@@ -555,7 +555,6 @@ class ParserAST:
         while self.current_token() and self.current_token()[0] != 'NEWLINE':
             # Process each part of the expression until a comma or newline is encountered
             part_tokens = self.parse_expression()
-            print(part_tokens)
             expr_list.append(part_tokens)
 
             # If the current token is a comma, skip it and continue

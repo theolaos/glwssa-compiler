@@ -128,6 +128,7 @@ class Tokenizer:
         for match in re.finditer(token_regex, self.code):
             kind = match.lastgroup
             value = match.group()
+            log(kind, value, tags=["mtok"])
 
             if kind in ['WHITESPACE', 'COMMENT']:
                 continue  # Skip whitespace and comments
@@ -152,7 +153,6 @@ class Tokenizer:
                 value = 'en_' + value
                 kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
             elif kind == 'BOOLEAN':
-                print(kind, value)
                 value = 'true' if 'ΑΛΗΘΗΣ' == value else 'false'
 
             self.tokens.append(tuple([kind, value]))

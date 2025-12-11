@@ -68,6 +68,7 @@ def main_with_ast():
     # vd - variable declaration
     # tok - tokens
     # atok - logs all the tokens of the loaded program
+    # mtok - logs the method tokenize
     flush_log_file()
     set_global_tags(["v", "vd", "atok"])
 

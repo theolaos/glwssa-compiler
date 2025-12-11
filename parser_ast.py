@@ -251,19 +251,56 @@ class ParserAST:
                 self.parse_read()
             elif token_type == 'WRITE':
                 self.parse_write()
-            elif token_type == 'ASSIGN':
+            elif token_type == 'IDENTIFIER':
                 self.parse_assignment()
             elif token_type == 'IF':
                 self.parse_if()
             elif token_type == 'END_PROGRAM':
                 print("End of program reached.")
                 self.next_token()  # Advance to the next token
-            else:
-                self.next_token()  # Skip unhandled tokens
+            elif token_type in ['NEWLINE']:
+                self.next_token()  # fix this
+                # TODO: this will skip tokens that are not supposed to be there...
 
             # Stop parsing if the current token index reaches the last token
             if self.current_token_index >= len(self.program_tokens):
                 break
+            print(token_type)
+
+    def parse_variables_block(self):
+       while self.current_token_index < len(self.program_tokens):
+            token = self.current_token()
+            if token is None:
+                break  # Exit if no more tokens
+
+            token_type, _ = token
+            if token_type == 'PROGRAM':
+                self.parse_program_name()
+            elif token_type == 'VARIABLES':
+                self.parse_declaration()
+
+    def parse_code_block(self): ...
+
+    def parse_block(self, end_tokens):
+        """
+        Parse block for PROCEDURES (ΔΙΑΔΙΚΑΣΙΑ) and If (ΑΝ), for (ΓΙΑ) blocks
+        
+        :param self: Description
+        :param end_tokens: Description
+        """
+        while self.current_token() and self.current_token()[0] not in end_tokens:
+            token_type, _ = self.current_token()
+            if token_type == 'WRITE':
+                self.parse_write()
+            elif token_type == 'READ':
+                self.parse_read()
+            elif token_type == 'IF':
+                self.parse_if()  # Handle nested if statements
+            elif token_type == 'ASSIGN':
+                self.parse_assignment()
+            else:
+                self.next_token()  # fix this
+                # TODO: this will skip tokens that are not supposed to be there...
 
 
     def parse_expression(self):
@@ -453,6 +490,7 @@ class ParserAST:
         _, self.program_name = self.current_token()
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
         log("From parse_declaration: Succesfully parsed program name ", tags=["vd"])
+        self.next_token()
 
 
     def parse_declaration(self):
@@ -546,8 +584,8 @@ class ParserAST:
 
 
     def parse_write(self):
-        VALID_READ_WRITE_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
-        END_TOKENS = {'NEWLINE', 'COMMA'}
+        # VALID_READ_WRITE_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
+        # END_TOKENS = {'NEWLINE', 'COMMA'}
 
         self.next_token()  # Skip 'ΓΡΑΨΕ'
         expr_list: _List[Expression] = []
@@ -566,7 +604,24 @@ class ParserAST:
 
 
     def parse_assignment(self):
-        ...
+        # VALID_ASSIGNMENT_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
+        # END_TOKENS = {'NEWLINE'}
+
+        # Get the variable being assigned to
+        _, var_name = self.current_token()  # The variable is the token before '<--'
+        self.next_token()  # Skip variable
+        self.expect('ASSIGN')
+
+        expression = self.parse_expression()
+
+        # Generate the C++ assignment statement
+        if not expression:
+            raise SyntaxError(f"Missing expression on the right-hand side of assignment for '{var_name}'")
+        
+        self.expect('NEWLINE')
+
+        node = VariableAssignement(target=var_name, expr=expression)
+        self.program.body.append(node)
 
     
     def parse_statement(self):

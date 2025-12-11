@@ -160,7 +160,7 @@ class Parser:
                 self.parse_read()
             elif token_type == 'WRITE':
                 self.parse_write()
-            elif token_type == 'ASSIGN':
+            elif token_type == 'IDENTIFIER':
                 self.parse_assignment()
             elif token_type == 'IF':
                 self.parse_if()
@@ -179,6 +179,12 @@ class Parser:
     
 
     def parse_block(self, end_tokens):
+        """
+        Parse block for PROCEDURES (ΔΙΑΔΙΚΑΣΙΑ) and If (ΑΝ), for (ΓΙΑ) blocks
+        
+        :param self: Description
+        :param end_tokens: Description
+        """
         while self.current_token() and self.current_token()[0] not in end_tokens:
             token_type, _ = self.current_token()
             if token_type == 'WRITE':
@@ -190,7 +196,8 @@ class Parser:
             elif token_type == 'ASSIGN':
                 self.parse_assignment()
             else:
-                self.next_token()  # Skip unhandled tokens
+                self.next_token()  # fix this
+                # TODO: this will skip tokens that are not supposed to be there...
 
     def parse_program(self):
         self.cpp_code.append("\n".join([

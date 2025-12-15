@@ -162,7 +162,72 @@ class Tokenizer:
 
 
         return self.tokens
-    
+
+
+    def tokenize_with_lines(self):
+        token_regex = '|'.join(
+            f'(?P<{pair[0]}>{pair[1]})'
+            for pair in self.token_specification
+        )
+
+        program_name_expected = False
+        token_lines = []
+
+        for line_no, line in enumerate(self.code.splitlines(), start=1):
+            line_tokens = []
+
+            for match in re.finditer(token_regex, line):
+                kind = match.lastgroup
+                value = match.group()
+                log(kind, value, tags=["mtok"])
+
+                if kind in {'WHITESPACE', 'COMMENT'}:
+                    continue
+
+                if kind == 'MISMATCH':
+                    raise SyntaxError(
+                        f"Unexpected character '{value}' on line {line_no}"
+                    )
+
+                if program_name_expected:
+                    if kind in {'GREEK_IDENTIFIER', 'ENGLISH_IDENTIFIER'}:
+                        kind = 'PROGRAM_NAME'
+                        value = ''.join(
+                            self.greek_to_english.get(c, c) for c in value
+                        )
+                        program_name_expected = False
+                    else:
+                        raise SyntaxError(
+                            f"Expected program name after 'ΠΡΟΓΡΑΜΜΑ' on line {line_no}"
+                        )
+
+                elif kind == 'PROGRAM':
+                    program_name_expected = True
+
+                elif kind == 'GREEK_IDENTIFIER':
+                    value = 'gr_' + ''.join(
+                        self.greek_to_english.get(c, c) for c in value
+                    )
+                    kind = 'IDENTIFIER'
+
+                elif kind == 'ENGLISH_IDENTIFIER':
+                    value = 'en_' + value
+                    kind = 'IDENTIFIER'
+
+                elif kind == 'BOOLEAN':
+                    value = 'true' if value == 'ΑΛΗΘΗΣ' else 'false'
+
+                line_tokens.append((kind, value))
+
+            if line_tokens:
+                token_lines.append(line_tokens)
+
+        log(token_lines, tags=['atok'])
+        self.tokens = token_lines
+        self._validate_order_and_uniqueness()
+
+        return token_lines
+
     
     def _validate_order_and_uniqueness(self):
         """

@@ -30,9 +30,16 @@ VALID_PROCESS_EXPRESSION_TOKENS = {
     'BUILTIN_FUNCTION', 'LPAREN', 'RPAREN'
 }
 
+TYPE_MAP = {
+    'INTEGERS': int,
+    'CHARACTERS': str,
+    'REAL': float,
+    'LOGICAL': bool,
+}
+
 from dataclasses import dataclass
 
-from log import log
+from .log import log
 
 from typing import Optional as _Optional
 from typing import Union as _Union
@@ -202,7 +209,6 @@ class TranspilerBackend_cpp:
 
     def translate_tree(self, tree):
         self.tree = tree
-
         # translating
 
 
@@ -217,11 +223,13 @@ class ParserAST:
         self.program_name = "a"
         self.code: _List[str] = []
 
+        self.current_line = 1
 
-    def current_token(self, index=0) -> _Optional[_Tuple[str, str]]:
-        if self.current_token_index < len(self.program_tokens):
+
+    def current_token(self, index=0, default: _Optional[str]=None) -> _Optional[_Tuple[str, str]]:
+        if self.current_token_index < len(self.program_tokens) and self.current_token_index >= 0:
             return self.program_tokens[self.current_token_index + index]
-        return None  # Return None if out of bounds
+        return default  # Return None if out of bounds
 
 
     def next_token(self):
@@ -240,14 +248,56 @@ class ParserAST:
             token = self.current_token()
             if token is None:
                 break  # Exit if no more tokens
-
+            
             token_type, _ = token
+            print(token_type)
+
             if token_type == 'PROGRAM':
-                self.parse_program_name()
-            elif token_type == 'VARIABLES':
-                self.parse_declaration()
-                # print("Parsing variables...")
-            elif token_type == 'READ':
+                self.parse_variables_block()
+                self.parse_code_block()
+            if token_type == 'PROCEDURE':
+                self.parse_procedure()
+            elif token_type == 'FUNCTION':
+                self.parse_function()
+            elif token_type == 'IDENTIFIER':
+                self.parse_assignment()
+            elif token_type == 'IF':
+                self.parse_if()
+            elif token_type in ['NEWLINE']:
+                if token_type == 'NEWLINE':
+                    self.current_line += 1
+                self.next_token()  # fix this
+                # TODO: this will skip tokens that are not supposed to be there...
+
+            # Stop parsing if the current token index reaches the last token
+            if self.current_token_index >= len(self.program_tokens):
+                break
+
+
+    def parse_variables_block(self):
+        # self.expect_token_alone('PROGRAM')
+        self.match('PROGRAM')
+        if self.current_token_index > 0 and self.current_token(-1)[0] != 'NEWLINE':
+            raise SyntaxError(f"Expected NEWLINE token before current token '{self.current_token(0)[0]}'")
+        self.next_token()
+        self.current_line += 1
+        self.parse_program_name()
+        self.expect_token_alone('VARIABLES')
+        self.current_line += 1
+        self.parse_declaration()
+        self.expect_token_alone('START')
+        self.current_line += 1
+        log('Ran parse variables', tags=['pvb'])
+
+
+    def parse_code_block(self):
+        while self.current_token_index < len(self.program_tokens):
+            token = self.current_token()
+            if token is None:
+                break  # Exit if no more tokens
+            
+            token_type, _ = token
+            if token_type == 'READ':
                 self.parse_read()
             elif token_type == 'WRITE':
                 self.parse_write()
@@ -256,30 +306,18 @@ class ParserAST:
             elif token_type == 'IF':
                 self.parse_if()
             elif token_type == 'END_PROGRAM':
-                print("End of program reached.")
+                log("From parse_code_block: End of main program reached.", tags=["v"])
                 self.next_token()  # Advance to the next token
             elif token_type in ['NEWLINE']:
+                if token_type == 'NEWLINE':
+                    self.current_line += 1                
                 self.next_token()  # fix this
                 # TODO: this will skip tokens that are not supposed to be there...
 
             # Stop parsing if the current token index reaches the last token
             if self.current_token_index >= len(self.program_tokens):
                 break
-            print(token_type)
 
-    def parse_variables_block(self):
-       while self.current_token_index < len(self.program_tokens):
-            token = self.current_token()
-            if token is None:
-                break  # Exit if no more tokens
-
-            token_type, _ = token
-            if token_type == 'PROGRAM':
-                self.parse_program_name()
-            elif token_type == 'VARIABLES':
-                self.parse_declaration()
-
-    def parse_code_block(self): ...
 
     def parse_block(self, end_tokens):
         """
@@ -315,19 +353,50 @@ class ParserAST:
         FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
         """        
         tree = self.parse_logical_or()
-        print(tree)
+        log(tree, tags=['expr'])
         return tree
 
     # __________________________________________________________________________________________________
 
-    def expect(self, expected_type) -> None:
+    def expect_token_alone(self, expected_type: str) -> None:
+        """
+        Checks if the token is alone in the the line. And then skips to the start of the next line. 
+        """
+        # print('What is the current token index', self.current_token_index)
+        if self.current_token()[0] != expected_type:
+            raise SyntaxError(f"Expected {expected_type}, but found {self.current_token()[0]}")
+        if self.current_token_index > 0 and self.current_token(-1)[0] != 'NEWLINE':
+            raise SyntaxError(f"Expected NEWLINE token before current token '{self.current_token()[0]}'")
+        if self.current_token(1)[0] != 'NEWLINE':
+            raise SyntaxError(f"Expected NEWLINE token after current token '{self.current_token()[0]}'")
+        self.next_token()
+        self.next_token()
+
+
+    def soft_match(self, expected_type) -> bool:
+        """
+        Checks token, and returns false if the token is not what was expected.
+        """
+        if self.current_token()[0] != expected_type:
+            return False
+        return True   
+
+    
+    def match(self, expected_type: str) -> None:
+        """
+        Checks token, and raises an exception if it not expected.
+        """
+        if self.current_token()[0] != expected_type:
+            raise SyntaxError(f"Expected {expected_type}, but found {self.current_token()[0]}")       
+
+
+    def expect(self, expected_type: str) -> None:
         """
         Checks token, and raises an exception if it is not expected.
 
         Progresses the token.
         """
-        if self.current_token()[0] != expected_type:
-            raise SyntaxError(f"Expected {expected_type}")
+        self.match(expected_type=expected_type)
         self.next_token()
 
 
@@ -482,18 +551,19 @@ class ParserAST:
         Realistically, if the tokenizer, didn't find a PROGRAM_NAME token, then there 
         would've been already an error. 
         
-        But neven be too sure...
-        """
-        self.next_token()  # Skip 'ΠΡΟΓΡΑΜΜΑ'
-        if not self.current_token() or self.current_token()[0] != 'PROGRAM_NAME':
-            raise SyntaxError("Expected program name after 'ΠΡΟΓΡΑΜΜΑ'")
+        But never be too sure...
+        """        
+        self.match('PROGRAM_NAME')
         _, self.program_name = self.current_token()
+
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
         log("From parse_declaration: Succesfully parsed program name ", tags=["vd"])
-        self.next_token()
+        self.next_token() # skips the name, to check if the next token is a NEWLINE, or else raise a Syntax Error
+        self.expect('NEWLINE')
+        self.current_line += 1
 
 
-    def parse_declaration(self):
+    def parse_declaration(self): # ΜΕΤΑΒΛΗΤΕΣ section
         """
         There is a section in the code, named VARIABLES, where you put all the variables at.
 
@@ -505,101 +575,109 @@ class ParserAST:
         
         log("From parse_declaration: Started Variable ", tags=["vd"])
 
-        VALID_VARIABLE_TYPES = {'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL'}
-
-        while self.current_token() and self.current_token()[0] in VALID_VARIABLE_TYPES:
+        while self.current_token() and self.current_token()[0] in TYPE_MAP:
             token_type, _ = self.current_token()
 
-            if token_type == 'INTEGERS':
-                for name in self.read_variable_list():
-                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: int", tags=["vd"])
-                    self.variable_table[name] = int
-                    self.program.body.append(VariableDeclaration(name, int))
-            elif token_type == 'CHARACTERS':
-                for name in self.read_variable_list():
-                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: str", tags=["vd"])
-                    self.variable_table[name] = str
-                    self.program.body.append(VariableDeclaration(name, str))
-            elif token_type == 'REAL':
-                for name in self.read_variable_list():
-                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: float", tags=["vd"])
-                    self.variable_table[name] = float
-                    self.program.body.append(VariableDeclaration(name, float))
-            elif token_type == 'LOGICAL':
-                for name in self.read_variable_list():
-                    log("From parse_declaration: Creating Node for VariableDeclaration with name:", name, "Type: bool", tags=["vd"])
-                    self.variable_table[name] = bool
-                    self.program.body.append(VariableDeclaration(name, bool))
-            else:
-                raise SyntaxError(f"Unexpected variable type '{token_type}'")
+            py_type = TYPE_MAP[token_type]
+            self.next_token() # skip type token
 
-            self.next_token()  # Move to the next token after processing the type
+            names = self.read_variable_list()
+            log("From parse_declaration: Creating Node for VariableDeclaration with name:", names, "Type: int", tags=["vd"])
+            
+            for name in names:
+                self.variable_table[name] = py_type
+                self.program.body.append(VariableDeclaration(name, py_type))
+
+            self.expect('NEWLINE')
+            self.current_line += 1
 
 
     def read_variable_list(self):
         log("From read_variable_list: Parsing the variable list", tags=["vd"])
 
         variables = []
-        self.next_token()  # Skip the type token (e.g., 'ΑΚΕΡΑΙΕΣ')
-
         # Ensure the next token is a colon
         if not self.current_token() or self.current_token()[0] != 'COLON':
             raise SyntaxError("Expected ':' after variable type")
         self.next_token()  # Skip the colon
 
         # read variable names
-        while self.current_token() and self.current_token()[0] == 'IDENTIFIER':
+        while self.current_token():
+            
+            self.match('IDENTIFIER')
+            
             _, var_name = self.current_token()
             variables.append(var_name)
-            self.next_token()  # Move to the next token
-            if self.current_token() and self.current_token()[0] == 'COMMA':
-                self.next_token()  # Skip the comma
+            
+            self.next_token()
+
+            if self.soft_match('COMMA'):
+                self.next_token()
+                continue
+
+            if self.soft_match('NEWLINE'):
+                break
+            
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
 
         if not variables:
             raise SyntaxError("Expected at least one variable name")
-        
-        log("From parse_declaration: Found these variables:", variables, tags=["vd"])
+
+        log("From read_variable_list: Found these variables:", variables, tags=["vd"])
         
         return variables
     
 
     def parse_read(self):
-        self.next_token()  # Skip 'ΔΙΑΒΑΣΕ'
+        self.expect('READ')  # Skip 'ΔΙΑΒΑΣΕ'
 
-        VALID_READ_WRITE_TOKENS = {'IDENTIFIER', 'COMMA'}
-        read = Read()
-        while self.current_token() and self.current_token()[0] != 'NEWLINE':
-            token_type, var_name = self.current_token()
-            if token_type not in VALID_READ_WRITE_TOKENS:
-                raise SyntaxError(f"Unexpected token '{var_name}' in read command.")
-            if token_type == 'IDENTIFIER':
-                try:
-                    read.variable_list.append(Variable(var_name, self.variable_table[var_name]))
-                except KeyError as e:
-                    raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
-
-            self.next_token()  # Move to the next token
+        read = Read([])
         
+        while self.current_token():
+            
+            self.match('IDENTIFIER')
+            _, var_name = self.current_token()
+            try:
+                read.variable_list.append(Variable(var_name, self.variable_table[var_name]))
+            except KeyError as e:
+                raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
+            self.next_token()
+
+            if self.soft_match('COMMA'):
+                self.next_token()
+                continue
+
+            if self.soft_match('NEWLINE'):
+                break
+            
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
+        
+
+        self.expect('NEWLINE')
+        log(f"From parse_read: Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_line}", tags=["r"])
+        self.current_line += 1
         self.program.body.append(read)
 
 
     def parse_write(self):
-        # VALID_READ_WRITE_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
-        # END_TOKENS = {'NEWLINE', 'COMMA'}
-
         self.next_token()  # Skip 'ΓΡΑΨΕ'
         expr_list: _List[Expression] = []
         
-        while self.current_token() and self.current_token()[0] != 'NEWLINE':
+        while self.current_token():
             # Process each part of the expression until a comma or newline is encountered
             part_tokens = self.parse_expression()
             expr_list.append(part_tokens)
 
             # If the current token is a comma, skip it and continue
-            if self.current_token() and self.current_token()[0] == 'COMMA':
+            if self.soft_match('COMMA'):
                 self.next_token()
+                continue
 
+            if self.soft_match('NEWLINE'):
+                break
 
+        self.expect('NEWLINE')
+        self.current_line += 1
         self.program.body.append(Write(expr_list))
 
 
@@ -610,6 +688,9 @@ class ParserAST:
         # Get the variable being assigned to
         _, var_name = self.current_token()  # The variable is the token before '<--'
         self.next_token()  # Skip variable
+        if not self.variable_table.get(var_name, []):
+            raise SyntaxError(f"Variable {var_name} does not exist.")
+
         self.expect('ASSIGN')
 
         expression = self.parse_expression()
@@ -619,14 +700,47 @@ class ParserAST:
             raise SyntaxError(f"Missing expression on the right-hand side of assignment for '{var_name}'")
         
         self.expect('NEWLINE')
+        self.current_line += 1
 
         node = VariableAssignement(target=var_name, expr=expression)
         self.program.body.append(node)
 
-    
-    def parse_statement(self):
-        ...
+
+    def parse_if(self):
+        VALID_CONDITIONAL_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
+        END_TOKENS = {'THEN', 'END_IF'}
+
+        self.next_token()  # Skip 'ΑΝ'
+        condition_tokens = self.process_expression(VALID_CONDITIONAL_TOKENS, END_TOKENS)
+
+        translated_condition = ' '.join(condition_tokens)
+        self.cpp_code.append(f"if ({translated_condition}) {{")
+
+        if self.current_token() and self.current_token()[0] == 'THEN':
+            self.next_token()  # Skip 'ΤΟΤΕ'
+
+        # Parse the body of the IF block
+        self.parse_block(['END_IF', 'ELSE_IF', 'ELSE'])
+        self.cpp_code.append("}")
+
+        # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
+        while self.current_token() and self.current_token()[0] == 'ELSE_IF':
+            self.cpp_code.append("else ")
+            self.parse_if()  # Recursively parse the else-if block
+
+        # Handle ΑΛΛΙΩΣ (else)
+        if self.current_token() and self.current_token()[0] == 'ELSE':
+            self.next_token()  # Skip 'ΑΛΛΙΩΣ'
+            self.cpp_code.append("else {")
+            self.parse_block(['END_IF'])
+            self.cpp_code.append("}")
+
+        # End the IF block
+        if self.current_token() and self.current_token()[0] == 'END_IF':
+            self.next_token()  # Skip 'ΤΕΛΟΣ_ΑΝ'
 
 
     def analyze_types_tree(self, expected_final_type: str | None = None) -> str | None:
-        ...
+        """
+        Analyzes everything in the program tree. If there are any errors it pushes them to the error stack.
+        """

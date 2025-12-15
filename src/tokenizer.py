@@ -22,7 +22,7 @@
 
 import re
 
-from log import log
+from .log import log
 
 
 def gsk(keyword: str) -> str:

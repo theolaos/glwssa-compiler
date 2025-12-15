@@ -23,10 +23,10 @@
 import subprocess
 import os
 
-from tokenizer import Tokenizer
-from parser import Parser
-from parser_ast import ParserAST, TranspilerBackend_cpp
-from log import set_global_tags, log, flush_log_file
+from src.tokenizer import Tokenizer
+from src.parser import Parser
+from src.parser_ast import ParserAST, TranspilerBackend_cpp
+from src.log import set_global_tags, log, flush_log_file
 
 
 def main():
@@ -69,8 +69,11 @@ def main_with_ast():
     # tok - tokens
     # atok - logs all the tokens of the loaded program
     # mtok - logs the method tokenize
+    # pvb - parse variable block
+    # expr - expressions
+    # r - from parse read
     flush_log_file()
-    set_global_tags(["v", "vd", "atok"])
+    set_global_tags(["v", "vd", "atok", "pvb", "expr", "r"])
 
     log("From main func: main function started.", tags=["v"])
 

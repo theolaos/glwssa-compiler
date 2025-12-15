@@ -191,49 +191,32 @@ class ExpressionStatement(Statement):
     expression: Expression
 
 
-class TranspilerBackend_cpp:
-    def __init__(self):
-        self.operator_mapping = {
-            'NEQ': '!=',  # Not equal
-            'EQ': '==',   # Equal
-            'GT': '>',    # Greater than
-            'LT': '<',    # Less than
-            'GTE': '>=',  # Greater than or equal
-            'LTE': '<=',  # Less than or equal
-            'AND': '&&',  # Logical AND
-            'OR': '||',   # Logical OR
-            'NOT': '!',   # Logical NOT
-            'MOD': '%',   # Modulus operator
-            'DIV': '/',   # Division operator
-        }
-
-    def translate_tree(self, tree):
-        self.tree = tree
-        # translating
-
-
 class ParserAST:
     def __init__(self, tokens, token):
-        self.program_tokens = tokens
+        self.program_tokens: _List[_List[_Tuple[str, str]]] = tokens
         self.tokens = token
 
         self.variable_table: dict[str, type] = {}
         self.program = Program([])
-        self.current_token_index = 0
         self.program_name = "a"
         self.code: _List[str] = []
 
+        self.current_token_index = 0
         self.current_line = 1
 
 
     def current_token(self, index=0, default: _Optional[str]=None) -> _Optional[_Tuple[str, str]]:
-        if self.current_token_index < len(self.program_tokens) and self.current_token_index >= 0:
-            return self.program_tokens[self.current_token_index + index]
+        if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
+            return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
 
 
     def next_token(self):
-        self.current_token_index += 1
+        if not self.current_token_index < len(self.program_tokens[self.current_line])-1:
+            self.current_token_index = 0
+            self.current_line += 1
+        else:
+            self.current_token_index += 1
 
 
     def parse(self):
@@ -398,6 +381,14 @@ class ParserAST:
         """
         self.match(expected_type=expected_type)
         self.next_token()
+
+
+    def expect_eol(self) -> None:
+        """
+        Expects it to be EOL (End of line), if it is not, it throws an error.
+        
+        :param self: Description
+        """
 
 
     def parse_logical_or(self):

@@ -185,29 +185,21 @@ class Tokenizer:
                     continue
 
                 if kind == 'MISMATCH':
-                    raise SyntaxError(
-                        f"Unexpected character '{value}' on line {line_no}"
-                    )
+                    raise SyntaxError(f"Unexpected character '{value}' on line {line_no}")
 
                 if program_name_expected:
                     if kind in {'GREEK_IDENTIFIER', 'ENGLISH_IDENTIFIER'}:
                         kind = 'PROGRAM_NAME'
-                        value = ''.join(
-                            self.greek_to_english.get(c, c) for c in value
-                        )
+                        value = ''.join(self.greek_to_english.get(c, c) for c in value)
                         program_name_expected = False
                     else:
-                        raise SyntaxError(
-                            f"Expected program name after 'ΠΡΟΓΡΑΜΜΑ' on line {line_no}"
-                        )
+                        raise SyntaxError(f"Expected program name after 'ΠΡΟΓΡΑΜΜΑ' on line {line_no}")
 
                 elif kind == 'PROGRAM':
                     program_name_expected = True
 
                 elif kind == 'GREEK_IDENTIFIER':
-                    value = 'gr_' + ''.join(
-                        self.greek_to_english.get(c, c) for c in value
-                    )
+                    value = 'gr_' + ''.join(self.greek_to_english.get(c, c) for c in value)
                     kind = 'IDENTIFIER'
 
                 elif kind == 'ENGLISH_IDENTIFIER':
@@ -221,8 +213,9 @@ class Tokenizer:
 
             if line_tokens:
                 token_lines.append(line_tokens)
-
-        log(token_lines, tags=['atok'])
+        
+        for line in token_lines:
+            log(line, tags=['atok'])
         self.tokens = token_lines
         self._validate_order_and_uniqueness()
 

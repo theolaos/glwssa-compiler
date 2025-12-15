@@ -86,7 +86,8 @@ def main_with_ast():
     log("From main func: Code has been succesfully read", tags=["v"])
 
     tokenizer = Tokenizer(code)
-    tokens = tokenizer.tokenize()
+    # tokens = tokenizer.tokenize()
+    tokens = tokenizer.tokenize_with_lines()
     log("From main func: Code has been succesfully tokenized", tags=["v"])
 
     parser = ParserAST(tokens, tokenizer.token)

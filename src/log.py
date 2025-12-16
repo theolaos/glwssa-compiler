@@ -28,6 +28,7 @@ from typing import Literal as _Literal
 # --- Global configuration ---
 LOG_FILE = "transpiler.log"
 GLOBAL_TAGS: set[str] = set()                               # Add tags here globally
+EXCLUDE_GLOBAL_TAGS: set[str] = set()
 DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "both"  # "both", "file", "print"
 LOGGING: bool = True
 
@@ -37,16 +38,19 @@ def flush_log_file():
         f.write("")
 
 
-def set_global_tags(tags: _Iterable[str]):
+def set_global_tags(tags: _Iterable[str], exclude_tags: _Iterable[str]):
     """Replace all global tags with the provided ones."""
     GLOBAL_TAGS.clear()
+    EXCLUDE_GLOBAL_TAGS.clear()
+
     GLOBAL_TAGS.update(tags)
+    EXCLUDE_GLOBAL_TAGS.update(exclude_tags)
 
 
-def add_global_tags(tags: _Iterable[str]):
+def add_global_tags(tags: _Iterable[str], exclude_tags: _Iterable[str]):
     """Add tags to the global set."""
     GLOBAL_TAGS.update(tags)
-
+    EXCLUDE_GLOBAL_TAGS.update(exclude_tags)
 
 
 def log(
@@ -74,7 +78,7 @@ def log(
 
     # 2. Tags check: we only log if call-tags ⊆ global-tags
     call_tags = set(tags)
-    if not call_tags.issubset(GLOBAL_TAGS):
+    if not (call_tags.issubset(GLOBAL_TAGS) or GLOBAL_TAGS.issubset(set(['all']))):
         return
 
     # 3. Build message like print()

@@ -202,21 +202,32 @@ class ParserAST:
         self.code: _List[str] = []
 
         self.current_token_index = 0
-        self.current_line = 1
+        self.current_line = 0
 
 
-    def current_token(self, index=0, default: _Optional[str]=None) -> _Optional[_Tuple[str, str]]:
+    def current_token(self, index: int =0, default: _Tuple[str, str]=('NO_TOKEN','NO_VALUE')) -> _Tuple[str, str]:
+        """
+        Retrieves the current token. It does not raise a Out of Bounds error, it gives you the default instead.
+        
+        :param index: Get the current_token + index
+        :type index: int
+        :param default: if there is no current_token, then it return the default token
+        :type default: Tuple[str, str]
+        :return: Returns the current token
+        :rtype: Tuple[str, str]
+        """
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
 
 
     def next_token(self):
-        if not self.current_token_index < len(self.program_tokens[self.current_line])-1:
-            self.current_token_index = 0
-            self.current_line += 1
-        else:
-            self.current_token_index += 1
+        self.current_token_index += 1
+
+
+    def next_line(self):
+        self.current_line += 1
+        self.current_token_index = 0
 
 
     def parse(self):
@@ -226,54 +237,47 @@ class ParserAST:
 
 
     def create_tree(self):
-        while self.current_token_index < len(self.program_tokens):
-            token = self.current_token()
-            if token is None:
-                break  # Exit if no more tokens
-            
-            token_type, _ = token
-            print(token_type)
+        while self.current_line < len(self.program_tokens):
+            token_type, _ = self.current_token()
+
+            log(f"From create tree(parser_ast.py): Parsing line {self.current_line}, index {self.current_token_index}. Current token type is {token_type}", tags=['debug', 'ct'])
 
             if token_type == 'PROGRAM':
+                log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=['debug', 'ct'])
                 self.parse_variables_block()
-                self.parse_code_block()
-            if token_type == 'PROCEDURE':
+                self.parse_code_block()                
+            elif token_type == 'PROCEDURE':
+                log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=['debug', 'ct'])
                 self.parse_procedure()
             elif token_type == 'FUNCTION':
+                log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=['debug', 'ct'])
                 self.parse_function()
-            elif token_type == 'IDENTIFIER':
-                self.parse_assignment()
-            elif token_type == 'IF':
-                self.parse_if()
-            elif token_type in ['NEWLINE']:
-                if token_type == 'NEWLINE':
-                    self.current_line += 1
-                self.next_token()  # fix this
-                # TODO: this will skip tokens that are not supposed to be there...
-
-            # Stop parsing if the current token index reaches the last token
-            if self.current_token_index >= len(self.program_tokens):
+            elif token_type == 'EMPTY_LINE':
+                log(f"From create tree(parser_ast.py): Found an empty line {self.current_line}, skipping it", tags=['debug', 'ct'])
+                self.next_line()
+                continue
+            
+            if self.current_line >= len(self.program_tokens):
+                log()
                 break
 
 
     def parse_variables_block(self):
-        # self.expect_token_alone('PROGRAM')
-        self.match('PROGRAM')
-        if self.current_token_index > 0 and self.current_token(-1)[0] != 'NEWLINE':
-            raise SyntaxError(f"Expected NEWLINE token before current token '{self.current_token(0)[0]}'")
+        self.expect_tokens_line(2)
         self.next_token()
-        self.current_line += 1
         self.parse_program_name()
+        log(f'From parse_variables_block (parser_ast.py): Got programs name {self.program_name}', tags=['pvb'])
+        self.next_line()
         self.expect_token_alone('VARIABLES')
-        self.current_line += 1
+        self.next_line()
         self.parse_declaration()
         self.expect_token_alone('START')
-        self.current_line += 1
-        log('Ran parse variables', tags=['pvb'])
+        self.next_line()
+        log('From parse_variables_block (parser_ast.py): Ran parse variables', tags=['pvb'])
 
 
     def parse_code_block(self):
-        while self.current_token_index < len(self.program_tokens):
+        while self.current_line < len(self.program_tokens):
             token = self.current_token()
             if token is None:
                 break  # Exit if no more tokens
@@ -288,14 +292,12 @@ class ParserAST:
             elif token_type == 'IF':
                 self.parse_if()
             elif token_type == 'END_PROGRAM':
-                log("From parse_code_block: End of main program reached.", tags=["v"])
-                self.next_token()  # Advance to the next token
-            elif token_type in ['NEWLINE']:
-                if token_type == 'NEWLINE':
-                    self.current_line += 1                
-                self.next_token()  # fix this
-                # TODO: this will skip tokens that are not supposed to be there...
-
+                log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
+                self.expect_token_alone('END_PROGRAM')
+                self.next_line()
+            elif token_type == 'EMPTY_LINE': # theoretically it also works in empty lines
+                self.next_line()
+            
             # Stop parsing if the current token index reaches the last token
             if self.current_token_index >= len(self.program_tokens):
                 break
@@ -332,7 +334,7 @@ class ParserAST:
         EXPR: term, ADDITION | SUBTRACTION
         TERM: power, MUL | DIV
         POWER: factor, POW = ^
-        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN
+        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN and VARIABLE = IDENTIFIER = ΜΕΤΑΒΛΗΤΗ
         """        
         tree = self.parse_logical_or()
         log(tree, tags=['expr'])
@@ -340,19 +342,19 @@ class ParserAST:
 
     # __________________________________________________________________________________________________
 
+    def expect_tokens_line(self, n: int) -> None:
+        if len(self.program_tokens[self.current_line]) is not n:
+            raise SyntaxError(
+                f"Expected only {n} tokens in line: {self.current_line}. Instead found {len(self.program_tokens[self.current_line])} tokens."
+            )   
+
+
     def expect_token_alone(self, expected_type: str) -> None:
         """
-        Checks if the token is alone in the the line. And then skips to the start of the next line. 
+        Checks if the token is alone in the the line.
         """
-        # print('What is the current token index', self.current_token_index)
-        if self.current_token()[0] != expected_type:
-            raise SyntaxError(f"Expected {expected_type}, but found {self.current_token()[0]}")
-        if self.current_token_index > 0 and self.current_token(-1)[0] != 'NEWLINE':
-            raise SyntaxError(f"Expected NEWLINE token before current token '{self.current_token()[0]}'")
-        if self.current_token(1)[0] != 'NEWLINE':
-            raise SyntaxError(f"Expected NEWLINE token after current token '{self.current_token()[0]}'")
-        self.next_token()
-        self.next_token()
+        self.expect_tokens_line(1)
+        self.match(expected_type)
 
 
     def soft_match(self, expected_type) -> bool:
@@ -382,12 +384,15 @@ class ParserAST:
         self.next_token()
 
 
+    def reached_eol(self) -> bool:
+        return self.current_token_index > len(self.program_tokens[self.current_line])-1
+
     def expect_eol(self) -> None:
         """
         Expects it to be EOL (End of line), if it is not, it throws an error.
-        
-        :param self: Description
         """
+        if not self.current_token_index > len(self.program_tokens[self.current_line])-1:
+            raise SyntaxError(f"Expected NEWLINE in the end of line: {self.current_line}. Encountered {self.current_token()} instead")
 
 
     def parse_logical_or(self):
@@ -537,20 +542,14 @@ class ParserAST:
     def parse_program_name(self):
         """
         Adds the first Node of the program, which should be the name.
-
-        Realistically, if the tokenizer, didn't find a PROGRAM_NAME token, then there 
-        would've been already an error. 
-        
-        But never be too sure...
         """        
         self.match('PROGRAM_NAME')
         _, self.program_name = self.current_token()
 
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
-        log("From parse_declaration: Succesfully parsed program name ", tags=["vd"])
-        self.next_token() # skips the name, to check if the next token is a NEWLINE, or else raise a Syntax Error
-        self.expect('NEWLINE')
-        self.current_line += 1
+        log("From parse_declaration (parser_ast.py): Succesfully parsed program name ", tags=["vd"])
+        self.next_token()
+        self.expect_eol()
 
 
     def parse_declaration(self): # ΜΕΤΑΒΛΗΤΕΣ section
@@ -559,31 +558,28 @@ class ParserAST:
 
         This method creates the nodes for that section.
         """
-        # skips the tokens that we do not need e.g. ['NEWLINE', 'VARIABLES']
-        while self.current_token() and self.current_token()[0] in ['NEWLINE', 'VARIABLES']:
-            self.next_token()
+        # parser starts after VARIABLE line
         
-        log("From parse_declaration: Started Variable ", tags=["vd"])
+        log("From parse_declaration (parser_ast.py): Started Variable ", tags=["vd"])
 
-        while self.current_token() and self.current_token()[0] in TYPE_MAP:
+        while self.current_token()[0] in TYPE_MAP:
             token_type, _ = self.current_token()
 
             py_type = TYPE_MAP[token_type]
             self.next_token() # skip type token
 
             names = self.read_variable_list()
-            log("From parse_declaration: Creating Node for VariableDeclaration with name:", names, "Type: int", tags=["vd"])
+            log("From parse_declaration (parser_ast.py): Creating Node for VariableDeclaration with name:", names, "Type: int", tags=["vd"])
             
             for name in names:
                 self.variable_table[name] = py_type
                 self.program.body.append(VariableDeclaration(name, py_type))
 
-            self.expect('NEWLINE')
-            self.current_line += 1
+            self.expect_eol()
 
 
     def read_variable_list(self):
-        log("From read_variable_list: Parsing the variable list", tags=["vd"])
+        log("From read_variable_list (parser_ast.py): Parsing the variable list", tags=["vd"])
 
         variables = []
         # Ensure the next token is a colon
@@ -605,15 +601,15 @@ class ParserAST:
                 self.next_token()
                 continue
 
-            if self.soft_match('NEWLINE'):
+            if self.reached_eol():
                 break
             
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}, {self.current_token(-1)[0]}")
 
         if not variables:
             raise SyntaxError("Expected at least one variable name")
 
-        log("From read_variable_list: Found these variables:", variables, tags=["vd"])
+        log("From read_variable_list (parser_ast.py): Found these variables:", variables, tags=["vd"])
         
         return variables
     
@@ -637,15 +633,14 @@ class ParserAST:
                 self.next_token()
                 continue
 
-            if self.soft_match('NEWLINE'):
+            if self.reached_eol():
                 break
             
             raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
         
-
-        self.expect('NEWLINE')
-        log(f"From parse_read: Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_line}", tags=["r"])
-        self.current_line += 1
+        self.expect_eol()
+        self.next_line()
+        log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_line}", tags=["r"])
         self.program.body.append(read)
 
 

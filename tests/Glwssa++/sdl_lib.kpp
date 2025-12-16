@@ -12,4 +12,3 @@
     cpp<SDL_Window>* gWindow{NULL}
     cpp<SDL_Surface>* gScreenSurface{NULL},  gHelloWorld{NULL}
 ΤΕΛΟΣ_ΜΕΤΑΒΛΗΤΩΝ
-

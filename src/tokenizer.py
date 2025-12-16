@@ -43,10 +43,17 @@ class Tokenizer:
         self.tokens = []
         self.greek_to_english = {
             'Α': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E',
-            'Ζ': 'Z', 'Η': 'H', 'Θ': 'TH', 'Ι': 'I', 'Κ': 'K',
+            'Ζ': 'Z', 'Η': 'H', 'Θ':'TH', 'Ι': 'I', 'Κ': 'K',
             'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O',
             'Π': 'P', 'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y',
-            'Φ': 'F', 'Χ': 'CH', 'Ψ': 'PS', 'Ω': 'W'
+            'Φ': 'F', 'Χ':'CH', 'Ψ':'PS', 'Ω': 'W',
+            'α': 'a', 'β': 'b', 'γ': 'g', 'δ': 'd', 'ε': 'e',
+            'ζ': 'z', 'η': 'h', 'θ':'th', 'ι': 'i', 'κ': 'k',
+            'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o',
+            'π': 'p', 'ρ': 'r', 'σ': 's', 'τ': 't', 'υ': 'y',
+            'φ': 'f', 'χ':'ch', 'ψ':'ps', 'ω': 'w',
+            # 'ί':'Ti', 'ή':'Th', 'ό':'To', 'ύ':'Tu', 'έ':'Te', 'ά':'Ta', 'ώ':'Tw', 
+            # 'Ί':'tI', 'Ή':'tH', 'Ό':'tO', 'Ύ':'tU', 'Έ':'tE', 'Ά':'tA', 'Ώ':'tW'
         }
         self.token_specification = [
             ('PROGRAM', fr'{gsk('ΠΡΟΓΡΑΜΜΑ')}'),      # Program declaration
@@ -73,7 +80,7 @@ class Tokenizer:
 
             ('END_PROGRAM', fr'{gsk('ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ')}'),
 
-            ('ASSIGN', r'<--'),             # Assignment operator
+            ('ASSIGN', r'<-'),             # Assignment operator
             ('READ', fr'{gsk('ΔΙΑΒΑΣΕ')}'),           # Read input
             ('WRITE', fr'{gsk('ΓΡΑΨΕ')}'),            # Write output
 
@@ -111,7 +118,7 @@ class Tokenizer:
             ('MOD', fr'{gsk('MOD')}'),
             ('IDIV', fr'{gsk('DIV')}'),
 
-            ('GREEK_IDENTIFIER', r'[Α-Ω_][Α-Ω0-9_]*'),  # Greek identifiers
+            ('GREEK_IDENTIFIER', r'[α-ωΑ-Ω_][α-ωΑ-Ω0-9_]*'),  # Greek identifiers
             ('ENGLISH_IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # English identifiers
 
             ('COMMENT', r'!.*'),
@@ -120,48 +127,6 @@ class Tokenizer:
             ('MISMATCH', r'.'),             # Any other character
         ]
         self.token = [i[0] for i in self.token_specification]
-
-    def tokenize(self):
-        token_regex = '|'.join(f'(?P<{pair[0]}>{pair[1]})' for pair in self.token_specification)
-        program_name_expected = False  # Flag to track if the next token is the program name
-
-        for match in re.finditer(token_regex, self.code):
-            kind = match.lastgroup
-            value = match.group()
-            log(kind, value, tags=["mtok"])
-
-            if kind in ['WHITESPACE', 'COMMENT']:
-                continue  # Skip whitespace and comments
-            elif kind == 'MISMATCH':
-                raise SyntaxError(f"Unexpected character: {value}")
-            elif program_name_expected:
-                # Handle the program name
-                if kind in ['GREEK_IDENTIFIER', 'ENGLISH_IDENTIFIER']:
-                    kind = 'PROGRAM_NAME'
-                    value = ''.join(self.greek_to_english.get(char, char) for char in value)
-                else:
-                    raise SyntaxError(f"Expected a program name after 'ΠΡΟΓΡΑΜΜΑ', but got '{value}'")
-                program_name_expected = False  # Reset the flag
-            elif kind == 'PROGRAM':
-                program_name_expected = True  # Set the flag to expect a program name
-            elif kind == 'GREEK_IDENTIFIER':
-                # Translate Greek variable names to English equivalents with a prefix
-                value = 'gr_' + ''.join(self.greek_to_english.get(char, char) for char in value)
-                kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
-            elif kind == 'ENGLISH_IDENTIFIER':
-                # Prefix English variable names with a distinct prefix
-                value = 'en_' + value
-                kind = 'IDENTIFIER'  # Normalize to shared IDENTIFIER token
-            elif kind == 'BOOLEAN':
-                value = 'true' if 'ΑΛΗΘΗΣ' == value else 'false'
-
-            self.tokens.append(tuple([kind, value]))
-
-        log(self.tokens, tags=['atok'])
-        self._validate_order_and_uniqueness()
-
-
-        return self.tokens
 
 
     def tokenize_with_lines(self):
@@ -179,7 +144,7 @@ class Tokenizer:
             for match in re.finditer(token_regex, line):
                 kind = match.lastgroup
                 value = match.group()
-                log(kind, value, tags=["mtok"])
+                # log(kind, value, tags=["mtok"])
 
                 if kind in {'WHITESPACE', 'COMMENT'}:
                     continue
@@ -188,9 +153,13 @@ class Tokenizer:
                     raise SyntaxError(f"Unexpected character '{value}' on line {line_no}")
 
                 if program_name_expected:
-                    if kind in {'GREEK_IDENTIFIER', 'ENGLISH_IDENTIFIER'}:
+                    if kind == 'GREEK_IDENTIFIER':
                         kind = 'PROGRAM_NAME'
-                        value = ''.join(self.greek_to_english.get(c, c) for c in value)
+                        value = 'gr_' + ''.join(self.greek_to_english.get(c, c) for c in value)
+                        program_name_expected = False
+                    elif kind ==  'ENGLISH_IDENTIFIER':
+                        kind = 'PROGRAM_NAME'
+                        value = 'en_' + value
                         program_name_expected = False
                     else:
                         raise SyntaxError(f"Expected program name after 'ΠΡΟΓΡΑΜΜΑ' on line {line_no}")
@@ -221,35 +190,43 @@ class Tokenizer:
 
         return token_lines
 
-    
     def _validate_order_and_uniqueness(self):
-        """
-        Enforce:
-         - 'START' must appear exactly once
-         - PROGRAM, VARIABLES, INTEGERS, CHARACTERS, REAL, LOGICAL must appear at most once
-           and (if present) must be located before 'START'
-        """
-        must_be_before_start = ['PROGRAM', 'VARIABLES', 'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL']
-        positions = {}
-        for idx, (kind, _) in enumerate(self.tokens):
-            positions.setdefault(kind, []).append(idx)
+        must_be_before_start = [
+            'PROGRAM', 'VARIABLES', 'INTEGERS',
+            'CHARACTERS', 'REAL', 'LOGICAL'
+        ]
 
-        start_positions = positions.get('PROGRAM', [])
-        if len(start_positions) != 1:
+        # kind -> list of (line_idx, token_idx)
+        positions = {}
+
+        for line_idx, line in enumerate(self.tokens):
+            for token_idx, (kind, _) in enumerate(line):
+                positions.setdefault(kind, []).append((line_idx, token_idx))
+
+        # PROGRAM must appear exactly once
+        program_positions = positions.get('PROGRAM', [])
+        if len(program_positions) != 1:
             raise SyntaxError("Token 'ΠΡΟΓΡΑΜΜΑ' (PROGRAM) must appear exactly once")
+
         # START must appear exactly once
         start_positions = positions.get('START', [])
         if len(start_positions) != 1:
             raise SyntaxError("Token 'ΑΡΧΗ' (START) must appear exactly once")
 
+        start_line, start_col = start_positions[0]
 
-        start_idx = start_positions[0]
-        print(start_positions)
-
-        # Each token in must_be_before_start must appear at most once and before START if present
+        # Tokens that must be before START
         for tk in must_be_before_start:
             if tk in positions:
                 if len(positions[tk]) != 1:
                     raise SyntaxError(f"Token '{tk}' must appear at most once")
-                if positions[tk][0] > start_idx:
-                    raise SyntaxError(f"Token '{tk}' must appear before 'ΑΡΧΗ' (START)")
+
+                tk_line, tk_col = positions[tk][0]
+
+                # Compare position to START
+                if (tk_line > start_line) or (
+                    tk_line == start_line and tk_col > start_col
+                ):
+                    raise SyntaxError(
+                        f"Token '{tk}' must appear before 'ΑΡΧΗ' (START)"
+                    )

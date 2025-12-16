@@ -18,12 +18,12 @@
 ΑΡΧΗ
     ΑΝ cpp<SDL_Init>(cpp<SDL_INIT_VIDEO> < 0) ΤΟΤΕ
         ΓΡΑΨΕ "SDL could not initialize! SDL_Error:", cpp<SDL_GetError>()
-        ΕΠΙΤΥΧΙΑ <-- ΨΕΥΔΗΣ
+        ΕΠΙΤΥΧΙΑ <- ΨΕΥΔΗΣ
     ΑΛΛΙΩΣ
         gWindow = cpp<SDL_CreateWindow>("SDL Tutorial", cpp<SDL_WINDOWPOS_UNDEFINED>, cpp<SDL_WINDOWPOS_UNDEFINED>, cpp<SCREEN_WIDTH>, cpp<SCREEN_HEIGHT>, cpp<SDL_WINDOW_SHOWN>)
         ΑΝ gWindow = NULL ΤΟΤΕ
             ΓΡΑΨΕ "Window could not be created! SDL_Error:", cpp<SDL_GetError>()
-            ΕΠΙΤΥΧΙΑ <-- ΨΕΥΔΗΣ
+            ΕΠΙΤΥΧΙΑ <- ΨΕΥΔΗΣ
         ΑΛΛΙΩΣ
             gScreenSurface = cpp<SDL_GetWindowSurface>(gWindow)
         ΤΕΛΟΣ_ΑΝ    

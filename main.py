@@ -25,9 +25,10 @@ import os
 
 from src.tokenizer import Tokenizer
 from src.parser import Parser
-from src.parser_ast import ParserAST, TranspilerBackend_cpp
+from src.parser_ast import ParserAST
+from src.analyzer import TreeAnalyzer
+from src.backend import TranspilerBackend_cpp
 from src.log import set_global_tags, log, flush_log_file
-
 
 def main():
     code: str = ""
@@ -65,6 +66,7 @@ def main():
 
 def main_with_ast():
     # v - verbose
+    # debug - debugging duh
     # vd - variable declaration
     # tok - tokens
     # atok - logs all the tokens of the loaded program
@@ -72,10 +74,11 @@ def main_with_ast():
     # pvb - parse variable block
     # expr - expressions
     # r - from parse read
+    # ct - create tree
     flush_log_file()
-    set_global_tags(["v", "vd", "atok", "pvb", "expr", "r"])
+    set_global_tags(tags=["all"], exclude_tags=["mtok"])
 
-    log("From main func: main function started.", tags=["v"])
+    log("From main func (main.py): main function started.", tags=["v"])
 
     code: str = ""
     compile_command: list[str] = []
@@ -83,33 +86,39 @@ def main_with_ast():
     with open("file.glwssa") as program:
         code = program.read()
 
-    log("From main func: Code has been succesfully read", tags=["v"])
+    log("From main func (main.py): Code has been succesfully read", tags=["v"])
 
     tokenizer = Tokenizer(code)
     # tokens = tokenizer.tokenize()
     tokens = tokenizer.tokenize_with_lines()
-    log("From main func: Code has been succesfully tokenized", tags=["v"])
+    log("From main func (main.py): Code has been succesfully tokenized", tags=["v"])
 
     parser = ParserAST(tokens, tokenizer.token)
-    log("From main func: The parser has been succesfully initialized", tags=["v"])
+    log("From main func (main.py): The parser has been succesfully initialized", tags=["v"])
     program_ast, program_name = parser.parse()
-    log("From main func: Code has been succesfully parsed", tags=["v"])
-    log("From main func: The program name is", program_name, tags=["v"])
+    log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
+    log("From main func (main.py): The program name is", program_name, tags=["v"])
+
+    analyzer = TreeAnalyzer()
+    log("From main func (main.py): Starting analyzing of the tree", tags=["v"])
+    analyzer.analyze_types_tree(program_ast)
+    log("From main func (main.py): Program tree analyzer is ", tags=["v"])
+
 
     backend = TranspilerBackend_cpp()
-    log("From main func: The backend has been succesfully initialized", tags=["v"])
+    log("From main func (main.py): The backend has been succesfully initialized", tags=["v"])
     cpp_code = backend.translate_tree(program_ast)
-    log("From main func: Code has been succesfully parsed", tags=["v"])
+    log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
 
     with open("output.cpp", "w") as output_file:
         output_file.write(cpp_code)
 
-    log("From main func: The cpp code output has been transferred into the output.cpp file", tags=["v"])
+    log("From main func (main.py): The cpp code output has been transferred into the output.cpp file", tags=["v"])
 
     # Detect the operating system
     is_windows = os.name == "nt"
 
-    log("From main func: Detected OS is:", "Windows" if is_windows else "Linux", tags=["v"])
+    log("From main func (main.py): Detected OS is:", "Windows" if is_windows else "Linux", tags=["v"])
 
     # Set the compile command based on the OS
     if is_windows: # https://github.com/niXman/mingw-builds-binaries?tab=readme-ov-file
@@ -117,16 +126,17 @@ def main_with_ast():
     else:
         compile_command = ["g++", "output.cpp", "-o", f"{program_name}.out"]
 
-    log("From main func: Running this command:", compile_command, tags=["v"])
+    log("From main func (main.py): Running this command:", compile_command, tags=["v"])
 
 
     # Compile the generated C++ file
     try:
         subprocess.run(compile_command, check=True)
         executable = f"{program_name}.exe" if is_windows else f"{program_name}.out"
-        log("From main func: The cpp code has been succesfully compiled into an executable, named:", executable, tags=["v"])
+        log("From main func (main.py): The cpp code has been succesfully compiled into an executable, named:", executable, tags=["v"])
         print(f"Compilation successful. Executable created: ./{executable}")
     except subprocess.CalledProcessError as e:
+        log("From main func (main.py): Failed to compile because, see error:\n", e, tags=["v"])
         print(f"Compilation failed: {e}")
 
 

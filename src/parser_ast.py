@@ -31,10 +31,10 @@ VALID_PROCESS_EXPRESSION_TOKENS = {
 }
 
 TYPE_MAP = {
-    'INTEGERS': int,
-    'CHARACTERS': str,
-    'REAL': float,
-    'LOGICAL': bool,
+    'INTEGERS': "int",
+    'CHARACTERS': "string",
+    'REAL': "float",
+    'LOGICAL': "bool",
 }
 
 from dataclasses import dataclass
@@ -221,7 +221,6 @@ class ParserAST:
 
     def parse(self):
         self.create_tree()
-        self.analyze_types_tree()
 
         return self.program, self.program_name
 
@@ -729,9 +728,3 @@ class ParserAST:
         # End the IF block
         if self.current_token() and self.current_token()[0] == 'END_IF':
             self.next_token()  # Skip 'ΤΕΛΟΣ_ΑΝ'
-
-
-    def analyze_types_tree(self, expected_final_type: str | None = None) -> str | None:
-        """
-        Analyzes everything in the program tree. If there are any errors it pushes them to the error stack.
-        """

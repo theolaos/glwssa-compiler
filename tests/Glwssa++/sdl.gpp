@@ -1,0 +1,64 @@
+ΕΙΣΑΓΩΓΗ_ΒΙΒΛΙΟΘΗΚΩΝ
+    .sdl_lib
+ΤΕΛΟΣ_ΕΙΣΑΓΩΓΗΣ
+
+ΣΥΝΑΡΤΗΣΗ Οθονη(παραθυρο) : ΚΕΝΟ
+ΜΕΤΑΒΛΗΤΕΣ
+    ΠΡΑΓΜΑΤΙΚΕΣ: παραθυρο
+ΑΡΧΗ
+    ΓΡΑΨΕ παραθυρο.h, παραθυρο.w
+
+    ΕΠΕΣΤΡΕΨΕ ! μπορείς να επιστρέψεις και με το όνομα της συνάρτησης 
+ΤΕΛΟΣ_ΣΥΝΑΡΤΗΣΗΣ
+
+
+ΣΥΝΑΡΤΗΣΗ ΑΡΧΙΚΟΠΟΙΗΣΗ() : ΛΟΓΙΚΗ
+ΜΕΤΑΒΛΗΤΕΣ
+    ΛΟΓΙΚΕΣ: ΕΠΙΤΥΧΙΑ
+ΑΡΧΗ
+    ΑΝ cpp<SDL_Init>(cpp<SDL_INIT_VIDEO> < 0) ΤΟΤΕ
+        ΓΡΑΨΕ "SDL could not initialize! SDL_Error:", cpp<SDL_GetError>()
+        ΕΠΙΤΥΧΙΑ <-- ΨΕΥΔΗΣ
+    ΑΛΛΙΩΣ
+        gWindow = cpp<SDL_CreateWindow>("SDL Tutorial", cpp<SDL_WINDOWPOS_UNDEFINED>, cpp<SDL_WINDOWPOS_UNDEFINED>, cpp<SCREEN_WIDTH>, cpp<SCREEN_HEIGHT>, cpp<SDL_WINDOW_SHOWN>)
+        ΑΝ gWindow = NULL ΤΟΤΕ
+            ΓΡΑΨΕ "Window could not be created! SDL_Error:", cpp<SDL_GetError>()
+            ΕΠΙΤΥΧΙΑ <-- ΨΕΥΔΗΣ
+        ΑΛΛΙΩΣ
+            gScreenSurface = cpp<SDL_GetWindowSurface>(gWindow)
+        ΤΕΛΟΣ_ΑΝ    
+    ΤΕΛΟΣ_ΑΝ
+
+    ΕΠΕΣΤΡΕΨΕ ΕΠΙΤΥΧΙΑ
+ΤΕΛΟΣ_ΣΥΝΑΡΤΗΣΗΣ
+
+
+! bool init()
+! {
+!     //Initialization flag
+!     bool success = true;
+! 
+!     //Initialize SDL
+!     if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
+!     {
+!         printf( "SDL could not initialize! SDL_Error: %s\n", SDL_GetError() );
+!         success = false;
+!     }
+!     else
+!     {
+!         //Create window
+!         gWindow = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+!         if( gWindow == NULL )
+!         {
+!             printf( "Window could not be created! SDL_Error: %s\n", SDL_GetError() );
+!             success = false;
+!         }
+!         else
+!         {
+!             //Get window surface
+!             gScreenSurface = SDL_GetWindowSurface( gWindow );
+!         }
+!     }
+! 
+!     return success;
+! }

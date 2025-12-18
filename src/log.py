@@ -87,7 +87,7 @@ def log(
     # 4. Format log line
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     tag_str = f"[{','.join(call_tags)}]" if call_tags else ""
-    line = f"{now} {tag_str} {message}"
+    line = f"{now}, {tag_str} {message}"
 
     # 5. File logging
     if mode in ("file", "both"):

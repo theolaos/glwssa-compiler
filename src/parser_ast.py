@@ -41,6 +41,8 @@ from dataclasses import dataclass
 
 from .log import log
 
+from .tokens import Token
+
 from typing import Optional as _Optional
 from typing import Union as _Union
 from typing import List as _List
@@ -205,7 +207,7 @@ class ParserAST:
         self.current_line = 0
 
 
-    def current_token(self, index: int =0, default: _Tuple[str, str]=('NO_TOKEN','NO_VALUE')) -> _Tuple[str, str]:
+    def current_token(self, index: int =0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1)) -> Token:
         """
         Retrieves the current token. It does not raise a Out of Bounds error, it gives you the default instead.
         
@@ -216,6 +218,8 @@ class ParserAST:
         :return: Returns the current token
         :rtype: Tuple[str, str]
         """
+        if len(self.program_tokens[self.current_line]) == 0:
+            return ('EMPTY_LINE', 'NO_VALUE')
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
@@ -232,13 +236,12 @@ class ParserAST:
 
     def parse(self):
         self.create_tree()
-
         return self.program, self.program_name
 
 
     def create_tree(self):
         while self.current_line < len(self.program_tokens):
-            token_type, _ = self.current_token()
+            token_type = self.current_token().kind
 
             log(f"From create tree(parser_ast.py): Parsing line {self.current_line}, index {self.current_token_index}. Current token type is {token_type}", tags=['debug', 'ct'])
 
@@ -270,19 +273,17 @@ class ParserAST:
         self.next_line()
         self.expect_token_alone('VARIABLES')
         self.next_line()
+
         self.parse_declaration()
+        log(f'From parse_variables_block (parser_ast.py): Finished parsing the variables', tags=['pvb'])
+        
         self.expect_token_alone('START')
         self.next_line()
-        log('From parse_variables_block (parser_ast.py): Ran parse variables', tags=['pvb'])
 
 
     def parse_code_block(self):
         while self.current_line < len(self.program_tokens):
-            token = self.current_token()
-            if token is None:
-                break  # Exit if no more tokens
-            
-            token_type, _ = token
+            token_type = self.current_token().kind
             if token_type == 'READ':
                 self.parse_read()
             elif token_type == 'WRITE':
@@ -310,7 +311,7 @@ class ParserAST:
         :param self: Description
         :param end_tokens: Description
         """
-        while self.current_token() and self.current_token()[0] not in end_tokens:
+        while self.current_token() and self.current_token().kind not in end_tokens:
             token_type, _ = self.current_token()
             if token_type == 'WRITE':
                 self.parse_write()
@@ -345,7 +346,7 @@ class ParserAST:
     def expect_tokens_line(self, n: int) -> None:
         if len(self.program_tokens[self.current_line]) is not n:
             raise SyntaxError(
-                f"Expected only {n} tokens in line: {self.current_line}. Instead found {len(self.program_tokens[self.current_line])} tokens."
+                f"Expected only {n} tokens in line: {self.current_token(-1).line}. Instead found {len(self.program_tokens[self.current_line])} tokens."
             )   
 
 
@@ -353,6 +354,7 @@ class ParserAST:
         """
         Checks if the token is alone in the the line.
         """
+        log(f"From expect_token_alone (parser_ast.py): Expecting token {expected_type}")
         self.expect_tokens_line(1)
         self.match(expected_type)
 
@@ -361,7 +363,7 @@ class ParserAST:
         """
         Checks token, and returns false if the token is not what was expected.
         """
-        if self.current_token()[0] != expected_type:
+        if self.current_token().kind != expected_type:
             return False
         return True   
 
@@ -370,7 +372,7 @@ class ParserAST:
         """
         Checks token, and raises an exception if it not expected.
         """
-        if self.current_token()[0] != expected_type:
+        if self.current_token().kind != expected_type:
             raise SyntaxError(f"Expected {expected_type}, but found {self.current_token()[0]}")       
 
 
@@ -387,6 +389,7 @@ class ParserAST:
     def reached_eol(self) -> bool:
         return self.current_token_index > len(self.program_tokens[self.current_line])-1
 
+
     def expect_eol(self) -> None:
         """
         Expects it to be EOL (End of line), if it is not, it throws an error.
@@ -397,8 +400,10 @@ class ParserAST:
 
     def parse_logical_or(self):
         node = self.parse_logical_and()
+        
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
 
-        token_type, token_value = self.current_token()
         while token_type == 'OR':
             self.expect('OR')
             node = BinaryOperation(left=node, operator='OR', right=self.parse_logical_and())
@@ -411,12 +416,15 @@ class ParserAST:
     def parse_logical_and(self):
         node = self.parse_condition()
 
-        token_type, token_value = self.current_token()
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
+
         while token_type == 'AND':
             self.expect('AND')
             node = BinaryOperation(left=node, operator='AND', right=self.parse_condition())
 
-            token_type, token_value = self.current_token()
+            token = self.current_token()
+            token_type, token_value = token.kind, token.value
 
         return node
 
@@ -427,7 +435,9 @@ class ParserAST:
         """
         node = self.parse_expr()
 
-        token_type, token_value = self.current_token()
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
+
         while token_type in {'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}:
             op = token_type
             self.expect(token_type)
@@ -435,15 +445,18 @@ class ParserAST:
             right = self.parse_expr()
             node = BinaryOperation(left=node, operator=op, right=right)
 
-            token_type, token_value = self.current_token()
+            token = self.current_token()
+            token_type, token_value = token.kind, token.value
 
         return node
 
 
     def parse_expr(self) -> _Union[BinaryOperation, Expression]:
         node = self.parse_term()
+        
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
 
-        token_type, token_value = self.current_token()
         while token_type in {'PLUS', 'MINUS'}:
 
             op = token_type
@@ -452,15 +465,18 @@ class ParserAST:
             right = self.parse_term()
             node = BinaryOperation(left=node, operator=op, right=right)
 
-            token_type, token_value = self.current_token()
+            token = self.current_token()
+            token_type, token_value = token.kind, token.value
 
         return node
 
 
     def parse_term(self) -> _Union[BinaryOperation, Expression]:
         node = self.parse_power()
-    
-        token_type, token_value = self.current_token()
+
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
+
         while token_type in {'MUL', 'FDIV', 'IDIV', 'MOD'}:
         
             op = token_type
@@ -469,7 +485,8 @@ class ParserAST:
             right = self.parse_power()
             node = BinaryOperation(left=node, operator=op, right=right)
     
-            token_type, token_value = self.current_token()
+            token = self.current_token()
+            token_type, token_value = token.kind, token.value
     
         return node
 
@@ -477,20 +494,23 @@ class ParserAST:
     def parse_power(self) -> _Union[BinaryOperation]:
         node = self.parse_unary()
 
-        token_type, token_value = self.current_token()
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
         while token_type == 'POW':
             self.expect('POW')
             
             right = self.parse_power()
             node = BinaryOperation(left=node, operator='POW', right=right)
         
-            token_type, token_value = self.current_token()
-
+            token = self.current_token()
+            token_type, token_value = token.kind, token.value
+        
         return node
 
 
     def parse_unary(self):
-        token_type, token_value = self.current_token()
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
         while token_type in {'NOT','MINUS'}:
             if token_type == 'NOT':
                 self.expect('NOT')
@@ -509,7 +529,8 @@ class ParserAST:
         Simple numbers (0-9) INT, FLOAT
         And parenetheses LPAREN and RPAREN
         """
-        token_type, token_value = self.current_token()
+        token = self.current_token()
+        token_type, token_value = token.kind, token.value
 
         if token_type == "NUMBER":
             self.expect("NUMBER")
@@ -533,7 +554,7 @@ class ParserAST:
             return node
 
         else:
-            raise SyntaxError(f"Unexpected token: {token_type}, with value: {token_value}")
+            raise SyntaxError(f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}")
 
 
     # __________________________________________________________________________________________________
@@ -544,7 +565,7 @@ class ParserAST:
         Adds the first Node of the program, which should be the name.
         """        
         self.match('PROGRAM_NAME')
-        _, self.program_name = self.current_token()
+        self.program_name = self.current_token().value
 
         self.program.body.append(ProgramName(self.program_name)) # purely symbolical
         log("From parse_declaration (parser_ast.py): Succesfully parsed program name ", tags=["vd"])
@@ -562,20 +583,21 @@ class ParserAST:
         
         log("From parse_declaration (parser_ast.py): Started Variable ", tags=["vd"])
 
-        while self.current_token()[0] in TYPE_MAP:
-            token_type, _ = self.current_token()
+        while self.current_token().kind in TYPE_MAP:
+            token_type = self.current_token().kind
 
             py_type = TYPE_MAP[token_type]
             self.next_token() # skip type token
 
             names = self.read_variable_list()
-            log("From parse_declaration (parser_ast.py): Creating Node for VariableDeclaration with name:", names, "Type: int", tags=["vd"])
+            log("From parse_declaration (parser_ast.py): Creating Node for VariableDeclaration with name:", names, f"Type: {TYPE_MAP[token_type]}", tags=["vd"])
             
             for name in names:
                 self.variable_table[name] = py_type
                 self.program.body.append(VariableDeclaration(name, py_type))
 
             self.expect_eol()
+            self.next_line()
 
 
     def read_variable_list(self):
@@ -583,7 +605,7 @@ class ParserAST:
 
         variables = []
         # Ensure the next token is a colon
-        if not self.current_token() or self.current_token()[0] != 'COLON':
+        if not self.current_token() or self.current_token().kind != 'COLON':
             raise SyntaxError("Expected ':' after variable type")
         self.next_token()  # Skip the colon
 
@@ -592,7 +614,7 @@ class ParserAST:
             
             self.match('IDENTIFIER')
             
-            _, var_name = self.current_token()
+            var_name = self.current_token().value
             variables.append(var_name)
             
             self.next_token()

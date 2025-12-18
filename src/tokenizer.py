@@ -22,7 +22,10 @@
 
 import re
 
+from dataclasses import dataclass
+
 from .log import log
+from .tokens import Token
 
 
 def gsk(keyword: str) -> str:
@@ -140,7 +143,9 @@ class Tokenizer:
 
         for line_no, line in enumerate(self.code.splitlines(), start=1):
             line_tokens = []
+            print(line, line_no)
 
+            column = 0
             for match in re.finditer(token_regex, line):
                 kind = match.lastgroup
                 value = match.group()
@@ -177,8 +182,8 @@ class Tokenizer:
 
                 elif kind == 'BOOLEAN':
                     value = 'true' if value == 'ΑΛΗΘΗΣ' else 'false'
-
-                line_tokens.append((kind, value))
+                line_tokens.append(Token(kind, value, line_no, column))
+                column += 1
 
             if line_tokens:
                 token_lines.append(line_tokens)
@@ -200,8 +205,8 @@ class Tokenizer:
         positions = {}
 
         for line_idx, line in enumerate(self.tokens):
-            for token_idx, (kind, _) in enumerate(line):
-                positions.setdefault(kind, []).append((line_idx, token_idx))
+            for token_idx, token in enumerate(line):
+                positions.setdefault(token.kind, []).append((line_idx, token_idx))
 
         # PROGRAM must appear exactly once
         program_positions = positions.get('PROGRAM', [])

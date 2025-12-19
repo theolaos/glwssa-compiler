@@ -373,7 +373,7 @@ class ParserAST:
         Checks token, and raises an exception if it not expected.
         """
         if self.current_token().kind != expected_type:
-            raise SyntaxError(f"Expected {expected_type}, but found {self.current_token()[0]}")       
+            raise SyntaxError(f"Expected {expected_type}, but found {self.current_token().kind}, in line {self.current_token().line}")       
 
 
     def expect(self, expected_type: str) -> None:
@@ -554,7 +554,9 @@ class ParserAST:
             return node
 
         else:
-            raise SyntaxError(f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}")
+            raise SyntaxError(
+                f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index)}"
+                )
 
 
     # __________________________________________________________________________________________________
@@ -644,7 +646,8 @@ class ParserAST:
         while self.current_token():
             
             self.match('IDENTIFIER')
-            _, var_name = self.current_token()
+            token = self.current_token()
+            var_name = token.value
             try:
                 read.variable_list.append(Variable(var_name, self.variable_table[var_name]))
             except KeyError as e:
@@ -662,7 +665,7 @@ class ParserAST:
         
         self.expect_eol()
         self.next_line()
-        log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_line}", tags=["r"])
+        log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_token().line - 1}", tags=["r"])
         self.program.body.append(read)
 
 
@@ -680,11 +683,11 @@ class ParserAST:
                 self.next_token()
                 continue
 
-            if self.soft_match('NEWLINE'):
+            if self.reached_eol():
                 break
 
-        self.expect('NEWLINE')
-        self.current_line += 1
+        self.expect_eol()
+        self.next_line()
         self.program.body.append(Write(expr_list))
 
 
@@ -693,7 +696,8 @@ class ParserAST:
         # END_TOKENS = {'NEWLINE'}
 
         # Get the variable being assigned to
-        _, var_name = self.current_token()  # The variable is the token before '<--'
+        token = self.current_token()  # The variable is the token before '<--'
+        var_name = token.value
         self.next_token()  # Skip variable
         if not self.variable_table.get(var_name, []):
             raise SyntaxError(f"Variable {var_name} does not exist.")
@@ -706,8 +710,8 @@ class ParserAST:
         if not expression:
             raise SyntaxError(f"Missing expression on the right-hand side of assignment for '{var_name}'")
         
-        self.expect('NEWLINE')
-        self.current_line += 1
+        self.expect_eol()
+        self.next_line()
 
         node = VariableAssignement(target=var_name, expr=expression)
         self.program.body.append(node)

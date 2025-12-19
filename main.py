@@ -33,6 +33,8 @@ from src.log import set_global_tags, log, flush_log_file
 def main():
     # v - verbose
     # b - if/for block
+    # eta - expect_token_alone is a method in ParserAST
+    # pi - parse_if method for parsing and creating the AST tree of If
     # debug - debugging duh
     # vd - variable declaration
     # tok - tokens

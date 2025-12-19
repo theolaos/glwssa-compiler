@@ -762,20 +762,21 @@ class ParserAST:
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_inner_if(then_branch, ['ELSE', 'ELSE_IF','END_IF'])
+        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF'])
 
         # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
         elif_branch = Block([])
         while self.soft_match('ELSE_IF'):
             # self.next_token() # parse if already skips the IF token (as well the ELSE_IF token)
             self.next_token()
-            condition_tokens = self.parse_expression()
+            elif_condition_tokens = self.parse_expression()
 
             self.expect('THEN')
             self.expect_eol()
             self.next_line()
-
-            self.parse_block(elif_branch, ['ELSE', 'ELSE_IF','END_IF'])  # Recursively parse the else-if block
+            temp_elif_branch = Block([])
+            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF'])  # Recursively parse the else-if block
+            elif_branch.body.append(Elif(elif_condition_tokens, temp_elif_branch))
 
         # Handle ΑΛΛΙΩΣ (else)
         else_branch = Block([])
@@ -794,7 +795,3 @@ class ParserAST:
                 else_branch=else_branch
             )
         )
-
-
-        def parse_inner_if(self, branch: _Union[Block, Program], end_tokens: _List[str]):
-            ...

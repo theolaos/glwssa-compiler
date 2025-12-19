@@ -32,6 +32,7 @@ from src.log import set_global_tags, log, flush_log_file
 
 def main():
     # v - verbose
+    # b - if/for block
     # debug - debugging duh
     # vd - variable declaration
     # tok - tokens
@@ -41,6 +42,7 @@ def main():
     # expr - expressions
     # r - from parse read
     # ct - create tree
+    # nodes - prints all the nodes of the AST tree
     flush_log_file()
     set_global_tags(tags=["all"], exclude_tags=["mtok"])
 
@@ -64,6 +66,9 @@ def main():
     program_ast, program_name = parser.parse()
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
     log("From main func (main.py): The program name is", program_name, tags=["v"])
+    log("From main func (main.py): Printing the Nodes of the AST tree", tags=['v'])
+    for node in program_ast.body:
+        log(node, tags=['nodes'])
 
     analyzer = TreeAnalyzer()
     log("From main func (main.py): Starting analyzing of the tree", tags=["v"])

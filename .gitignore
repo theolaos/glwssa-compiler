@@ -18,6 +18,8 @@ mingw64/*
 .vscode
 transpiler.log
 
+test.py
+
 genastdot.py
 
 ast.dot

@@ -79,7 +79,11 @@ class String(Literal):
 
 @dataclass
 class Number(Literal):
-    value: _Union[int, float]
+    value: int
+
+@dataclass
+class Float(Literal):
+    value: float
 
 @dataclass
 class Boolean(Literal):
@@ -146,7 +150,14 @@ class VariableAssignement(Statement):
 class If(Statement):
     condition: Expression
     then_brach: Block
+    elif_branch: _List[Block]
     else_branch: _Optional[Statement]
+
+
+@dataclass
+class Elif(Statement):
+    condition: Expression
+    then_brach: _List[Block]
 
 
 @dataclass
@@ -261,20 +272,20 @@ class ParserAST:
                 continue
             
             if self.current_line >= len(self.program_tokens):
-                log()
+                log("From create tree(parser_ast.py): Finished creating tree", tags=['ct'])
                 break
 
 
     def parse_variables_block(self):
         self.expect_tokens_line(2)
         self.next_token()
-        self.parse_program_name()
+        self.parse_program_name(self.program)
         log(f'From parse_variables_block (parser_ast.py): Got programs name {self.program_name}', tags=['pvb'])
         self.next_line()
         self.expect_token_alone('VARIABLES')
         self.next_line()
 
-        self.parse_declaration()
+        self.parse_declaration(self.program)
         log(f'From parse_variables_block (parser_ast.py): Finished parsing the variables', tags=['pvb'])
         
         self.expect_token_alone('START')
@@ -285,13 +296,21 @@ class ParserAST:
         while self.current_line < len(self.program_tokens):
             token_type = self.current_token().kind
             if token_type == 'READ':
-                self.parse_read()
+                log(f"From parse_code_block (parser_ast.py): Found READ in main program.", tags=["v"])
+                self.parse_read(self.program)
+                self.next_line()
             elif token_type == 'WRITE':
-                self.parse_write()
+                log(f"From parse_code_block (parser_ast.py): Found WRITE in main program", tags=["v"])
+                self.parse_write(self.program)
+                self.next_line()
             elif token_type == 'IDENTIFIER':
-                self.parse_assignment()
+                log(f"From parse_code_block (parser_ast.py): Found IDENTIFIER/ASSIGNEMENT in main program", tags=["v"])
+                self.parse_assignment(self.program)
+                self.next_line()
             elif token_type == 'IF':
-                self.parse_if()
+                log(f"From parse_code_block (parser_ast.py): Found IF in main program", tags=["v"])
+                self.parse_if(self.program)
+                self.next_line()
             elif token_type == 'END_PROGRAM':
                 log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
                 self.expect_token_alone('END_PROGRAM')
@@ -304,26 +323,38 @@ class ParserAST:
                 break
 
 
-    def parse_block(self, end_tokens):
+    def parse_block(self, branch: _Union[Block, Program], end_tokens: _List[str]) -> _Union[Block, Program]:
         """
-        Parse block for PROCEDURES (ΔΙΑΔΙΚΑΣΙΑ) and If (ΑΝ), for (ΓΙΑ) blocks
+        Parse block for and If (ΑΝ), for (ΓΙΑ) blocks
         
         :param self: Description
         :param end_tokens: Description
         """
-        while self.current_token() and self.current_token().kind not in end_tokens:
-            token_type, _ = self.current_token()
+
+        log(f"From parse_block (parser_ast.py): {self.current_token()}.", tags=["b"])
+        while self.current_token().kind not in end_tokens:
+            log(f"From parse_block (parser_ast.py): {self.current_token()}.", tags=["b"])
+            token = self.current_token()
+            token_type = token.kind
             if token_type == 'WRITE':
-                self.parse_write()
+                log(f"From parse_block (parser_ast.py): Inside IF/FOR found WRITE", tags=["b"])
+                self.parse_write(branch)
+                self.next_line()
             elif token_type == 'READ':
-                self.parse_read()
+                log(f"From parse_block (parser_ast.py): Inside IF/FOR found READ", tags=["b"])
+                self.parse_read(branch)
+                self.next_line()
             elif token_type == 'IF':
-                self.parse_if()  # Handle nested if statements
-            elif token_type == 'ASSIGN':
-                self.parse_assignment()
-            else:
-                self.next_token()  # fix this
-                # TODO: this will skip tokens that are not supposed to be there...
+                log(f"From parse_block (parser_ast.py): Inside IF/FOR found IF", tags=["b"])
+                self.parse_if(branch)  # Handle nested if statements
+                self.next_line()
+            elif token_type == 'IDENTIFIER':
+                log(f"From parse_block (parser_ast.py): Inside IF/FOR found ASSIGN", tags=["b"])
+                self.parse_assignment(branch)
+                self.next_line()
+            elif token_type in end_tokens:
+                break
+        log("From parse_block (parser_ast.py): Finished IF/FOR block.", tags=["b"])
 
 
     def parse_expression(self):
@@ -352,11 +383,12 @@ class ParserAST:
 
     def expect_token_alone(self, expected_type: str) -> None:
         """
-        Checks if the token is alone in the the line.
+        Checks if the token is alone in the the line. IT DOES NOT GO TO THE NEXT LINE.
         """
         log(f"From expect_token_alone (parser_ast.py): Expecting token {expected_type}")
         self.expect_tokens_line(1)
         self.match(expected_type)
+        log(f"From expect_token_alone (parser_ast.py): Found {expected_type}")
 
 
     def soft_match(self, expected_type) -> bool:
@@ -535,6 +567,9 @@ class ParserAST:
         if token_type == "NUMBER":
             self.expect("NUMBER")
             return Number(token_value)
+        elif token_type == "FLOAT":
+            self.expect("FLOAT")
+            return Float(token_value)
         
         elif token_type == "BOOLEAN":
             self.expect("BOOLEAN")
@@ -542,10 +577,12 @@ class ParserAST:
 
         elif token_type == "IDENTIFIER":
             self.expect("IDENTIFIER")
-            
             if not self.variable_table.get(token_value, False):
-                raise SyntaxError(f"Variable {token_value} does not exist.")
+                raise SyntaxError(f"Variable {token_value} does not exist, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}")
             return Variable(token_value, self.variable_table[token_value])
+        elif token_type == "STRING":
+            self.expect("STRING")
+            return String(token_value)
 
         elif token_type == "LPAREN":
             self.expect("LPAREN")
@@ -555,27 +592,27 @@ class ParserAST:
 
         else:
             raise SyntaxError(
-                f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index)}"
+                f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}"
                 )
 
 
     # __________________________________________________________________________________________________
 
 
-    def parse_program_name(self):
+    def parse_program_name(self, branch: _Union[Block, Program]):
         """
         Adds the first Node of the program, which should be the name.
         """        
         self.match('PROGRAM_NAME')
         self.program_name = self.current_token().value
 
-        self.program.body.append(ProgramName(self.program_name)) # purely symbolical
+        branch.body.append(ProgramName(self.program_name)) # purely symbolical
         log("From parse_declaration (parser_ast.py): Succesfully parsed program name ", tags=["vd"])
         self.next_token()
         self.expect_eol()
 
 
-    def parse_declaration(self): # ΜΕΤΑΒΛΗΤΕΣ section
+    def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
         """
         There is a section in the code, named VARIABLES, where you put all the variables at.
 
@@ -596,7 +633,7 @@ class ParserAST:
             
             for name in names:
                 self.variable_table[name] = py_type
-                self.program.body.append(VariableDeclaration(name, py_type))
+                branch.body.append(VariableDeclaration(name, py_type))
 
             self.expect_eol()
             self.next_line()
@@ -638,7 +675,7 @@ class ParserAST:
         return variables
     
 
-    def parse_read(self):
+    def parse_read(self, branch: _Union[Block, Program]):
         self.expect('READ')  # Skip 'ΔΙΑΒΑΣΕ'
 
         read = Read([])
@@ -664,12 +701,11 @@ class ParserAST:
             raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
         
         self.expect_eol()
-        self.next_line()
         log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_token().line - 1}", tags=["r"])
-        self.program.body.append(read)
+        branch.body.append(read)
 
 
-    def parse_write(self):
+    def parse_write(self, branch: _Union[Block, Program]):
         self.next_token()  # Skip 'ΓΡΑΨΕ'
         expr_list: _List[Expression] = []
         
@@ -687,11 +723,10 @@ class ParserAST:
                 break
 
         self.expect_eol()
-        self.next_line()
-        self.program.body.append(Write(expr_list))
+        branch.body.append(Write(expr_list))
 
 
-    def parse_assignment(self):
+    def parse_assignment(self, branch: _Union[Block, Program]):
         # VALID_ASSIGNMENT_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
         # END_TOKENS = {'NEWLINE'}
 
@@ -711,41 +746,55 @@ class ParserAST:
             raise SyntaxError(f"Missing expression on the right-hand side of assignment for '{var_name}'")
         
         self.expect_eol()
-        self.next_line()
 
         node = VariableAssignement(target=var_name, expr=expression)
-        self.program.body.append(node)
+        branch.body.append(node)
 
 
-    def parse_if(self):
-        VALID_CONDITIONAL_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
-        END_TOKENS = {'THEN', 'END_IF'}
+    def parse_if(self, branch: _Union[Block, Program]):
+        self.next_token()  # Skip 'ΑΝ' or 'ΑΛΛΙΩΣ_ΑΝ'
+        condition_tokens = self.parse_expression()
 
-        self.next_token()  # Skip 'ΑΝ'
-        condition_tokens = self.process_expression(VALID_CONDITIONAL_TOKENS, END_TOKENS)
+        self.expect('THEN')
+        self.expect_eol()
+        self.next_line()
 
-        translated_condition = ' '.join(condition_tokens)
-        self.cpp_code.append(f"if ({translated_condition}) {{")
-
-        if self.current_token() and self.current_token()[0] == 'THEN':
-            self.next_token()  # Skip 'ΤΟΤΕ'
+        then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(['END_IF', 'ELSE_IF', 'ELSE'])
-        self.cpp_code.append("}")
+        self.parse_inner_if(then_branch, ['ELSE', 'ELSE_IF','END_IF'])
 
         # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
-        while self.current_token() and self.current_token()[0] == 'ELSE_IF':
-            self.cpp_code.append("else ")
-            self.parse_if()  # Recursively parse the else-if block
+        elif_branch = Block([])
+        while self.soft_match('ELSE_IF'):
+            # self.next_token() # parse if already skips the IF token (as well the ELSE_IF token)
+            self.next_token()
+            condition_tokens = self.parse_expression()
+
+            self.expect('THEN')
+            self.expect_eol()
+            self.next_line()
+
+            self.parse_block(elif_branch, ['ELSE', 'ELSE_IF','END_IF'])  # Recursively parse the else-if block
 
         # Handle ΑΛΛΙΩΣ (else)
-        if self.current_token() and self.current_token()[0] == 'ELSE':
-            self.next_token()  # Skip 'ΑΛΛΙΩΣ'
-            self.cpp_code.append("else {")
-            self.parse_block(['END_IF'])
-            self.cpp_code.append("}")
+        else_branch = Block([])
+        if self.soft_match('ELSE'):
+            self.expect_token_alone('ELSE')
+            self.next_line()
+            self.parse_block(else_branch, ['END_IF'])
 
-        # End the IF block
-        if self.current_token() and self.current_token()[0] == 'END_IF':
-            self.next_token()  # Skip 'ΤΕΛΟΣ_ΑΝ'
+        self.expect_token_alone('END_IF')
+
+        branch.body.append(
+            If(
+                condition=condition_tokens,
+                then_brach=then_branch,
+                elif_branch=elif_branch,
+                else_branch=else_branch
+            )
+        )
+
+
+        def parse_inner_if(self, branch: _Union[Block, Program], end_tokens: _List[str]):
+            ...

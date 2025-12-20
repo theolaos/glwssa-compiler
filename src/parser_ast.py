@@ -763,7 +763,7 @@ class ParserAST:
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF'])
+        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'])
 
         branches_node.append(Branch(condition_tokens, then_branch))
 
@@ -778,7 +778,7 @@ class ParserAST:
             self.expect_eol()
             self.next_line()
             temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF'], True)  # Recursively parse the else-if block
+            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], True)  # Recursively parse the else-if block
             branches_node.append(Branch(elif_condition_tokens, temp_elif_branch))
 
         if not branches_node:
@@ -791,61 +791,21 @@ class ParserAST:
         if self.soft_match('ELSE'):
             self.expect_token_alone('ELSE')
             self.next_line()
-            self.parse_block(else_branch, ['END_IF'])
+            self.parse_block(else_branch, ['END_IF','END_PROGRAM'])
         
         # self.expect_token_alone('END_IF')
 
         log(f"From parse_if (parser_ast.py): Expecting token {'END_IF'}", tags=['eta'])
         self.expect_tokens_line(1)
-        self.match('END_IF')
+        if not self.soft_match('END_IF'):
+            raise SyntaxError(
+                f"Expected END_IF for the IF scope from line {start_line} but found {self.current_token().kind} instead."
+            )
         log(f"From parse_if (parser_ast.py): Found {'END_IF'}", tags=['eta'])
 
         branch.body.append(
             If(
                 branches=branches_node,
-                else_branch=else_branch
-            )
-        )
-        self.next_token()  # Skip 'ΑΝ' or 'ΑΛΛΙΩΣ_ΑΝ'
-        condition_tokens = self.parse_expression()
-
-        self.expect('THEN')
-        self.expect_eol()
-        self.next_line()
-
-        then_branch = Block([])
-
-        # Parse the body of the IF block
-        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF'])
-
-        # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
-        elif_branch = Block([])
-        while self.soft_match('ELSE_IF'):
-            # self.next_token() # parse if already skips the IF token (as well the ELSE_IF token)
-            self.next_token()
-            elif_condition_tokens = self.parse_expression()
-
-            self.expect('THEN')
-            self.expect_eol()
-            self.next_line()
-            temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF'], True)  # Recursively parse the else-if block
-            elif_branch.body.append(Elif(elif_condition_tokens, temp_elif_branch))
-
-        # Handle ΑΛΛΙΩΣ (else)
-        else_branch = Block([])
-        if self.soft_match('ELSE'):
-            self.expect_token_alone('ELSE')
-            self.next_line()
-            self.parse_block(else_branch, ['END_IF'])
-
-        self.expect_token_alone('END_IF')
-
-        branch.body.append(
-            If(
-                condition=condition_tokens,
-                then_brach=then_branch,
-                elif_branch=elif_branch,
                 else_branch=else_branch
             )
         )

@@ -156,12 +156,17 @@ class If(Statement):
     branches: _List[Branch]
     else_branch: _Optional[Statement]
 
-
 @dataclass
 class While(Statement):
     condition: Expression
     body: Block
 
+@dataclass
+class For(Statement):
+    counter: Variable
+    condition: Expression
+    step: _Union[Number, Float] # is this lore accurate?
+    body: Block
 
 @dataclass
 class ProcedureDecl(Statement):
@@ -308,6 +313,10 @@ class ParserAST:
                 log(f"From parse_code_block (parser_ast.py): Found IF in main program", tags=["v"])
                 self.parse_if(self.program)
                 self.next_line()
+            elif token_type == "WHILE":
+                log(f"From parse_code_block (parser_ast.py): Found WHILE in main program", tags=["v"])
+                self.parse_while(self.program)
+                self.next_line()
             elif token_type == 'END_PROGRAM':
                 log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
                 self.expect_token_alone('END_PROGRAM')
@@ -334,21 +343,26 @@ class ParserAST:
             token = self.current_token()
             token_type = token.kind
             if token_type == 'WRITE':
-                log(f"From parse_block (parser_ast.py): Inside IF/FOR found WRITE", tags=["b"])
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WRITE", tags=["b"])
                 self.parse_write(branch)
                 self.next_line()
             elif token_type == 'READ':
-                log(f"From parse_block (parser_ast.py): Inside IF/FOR found READ", tags=["b"])
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found READ", tags=["b"])
                 self.parse_read(branch)
                 self.next_line()
-            elif token_type == 'IF': 
-                log(f"From parse_block (parser_ast.py): Inside IF/FOR found IF", tags=["b"])
-                self.parse_if(branch)  # Handle nested if statements
-                self.next_line()
             elif token_type == 'IDENTIFIER':
-                log(f"From parse_block (parser_ast.py): Inside IF/FOR found ASSIGN", tags=["b"])
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found ASSIGN", tags=["b"])
                 self.parse_assignment(branch)
                 self.next_line()
+            elif token_type == 'IF': 
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found IF", tags=["b"])
+                self.parse_if(branch)  # Handle nested if statements
+                self.next_line()
+            elif token_type == 'WHILE':
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WHILE", tags=["b"])
+                self.parse_while(branch)  # Handle nested if statements
+                self.next_line()
+
             elif token_type in end_tokens:
                 break
         log("From parse_block (parser_ast.py): Finished IF/FOR block.", tags=["b"])
@@ -807,5 +821,35 @@ class ParserAST:
             If(
                 branches=branches_node,
                 else_branch=else_branch
+            )
+        )
+
+
+    def parse_while(self, branch: _Union[Block, Program]):
+        start_line = self.current_token().line
+        self.next_token()
+        condition = self.parse_expression()
+
+        self.expect('REPEAT')
+        self.expect_eol()
+        self.next_line()
+
+        while_branch = Block([])
+
+        # Parse the body of the IF block
+        self.parse_block(while_branch, ['END_LOOP','END_PROGRAM'])
+
+        log(f"From parse_while (parser_ast.py): Expecting token {'END_LOOP'}", tags=['eta'])
+        self.expect_tokens_line(1)
+        if not self.soft_match('END_LOOP'):
+            raise SyntaxError(
+                f"Expected END_IF for the IF scope from line {start_line} but found {self.current_token().kind} instead."
+            )
+        log(f"From parse_while (parser_ast.py): Found {'END_LOOP'}", tags=['eta'])
+
+        branch.body.append(
+            While(
+                condition=condition,
+                body=while_branch
             )
         )

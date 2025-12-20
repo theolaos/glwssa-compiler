@@ -80,6 +80,7 @@ class Tokenizer:
 
             ('WHILE', fr'{gsk('ΟΣΟ')}'),
             ('REPEAT', fr'{gsk('ΕΠΑΝΑΛΑΒΕ')}'),
+            ('END_LOOP', fr'{gsk('ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ')}'),        # End if
 
             ('END_PROGRAM', fr'{gsk('ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ')}'),
 

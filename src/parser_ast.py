@@ -170,6 +170,11 @@ class For(Statement):
     body: Block
 
 @dataclass
+class Do(Statement):
+    condition: Expression
+    body: Block
+
+@dataclass
 class ProcedureDecl(Statement):
     """
     In GLWSSA you have an additional function type, named procedure. 
@@ -322,6 +327,10 @@ class ParserAST:
                 log(f"From parse_code_block (parser_ast.py): Found FOR in main program", tags=["v"])
                 self.parse_for(self.program)
                 self.next_line()
+            elif token_type == "START_LOOP":
+                log(f"From parse_code_block (parser_ast.py): Found DO WHILE* in main program", tags=["v"])
+                self.parse_do(self.program)
+                self.next_line()
             elif token_type == 'END_PROGRAM':
                 log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
                 self.expect_token_alone('END_PROGRAM')
@@ -366,6 +375,10 @@ class ParserAST:
             elif token_type == 'WHILE':
                 log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WHILE", tags=["b"])
                 self.parse_while(branch)  # Handle nested if statements
+                self.next_line()
+            elif token_type == 'START_LOOP':
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found DO WHILE*", tags=["b"])
+                self.parse_do(branch)  # Handle nested if statements
                 self.next_line()
             elif token_type == 'FOR':
                 log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found FOR", tags=["b"])
@@ -867,6 +880,7 @@ class ParserAST:
             )
         )
 
+
     def parse_for(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line
 
@@ -911,5 +925,35 @@ class ParserAST:
                 to_expr=expr2,
                 step=step,
                 body=for_branch
+            )
+        )
+
+
+    def parse_do(self, branch: _Union[Block, Program]):
+        start_line = self.current_token().line
+
+        self.expect_token_alone("START_LOOP")
+        self.next_line()
+
+        do_branch = Block([])
+        self.parse_block(do_branch, ['UNTIL', 'END_PROGRAM'])
+
+
+        log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=['eta'])
+        if not self.soft_match('UNTIL'):
+            raise SyntaxError(
+                f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
+            )
+        log("From parse_do (parser_ast.py): Found 'UNTIL'", tags=['eta'])
+
+        self.next_token()
+        expr = self.parse_expression()
+
+        self.expect_eol()
+
+        branch.body.append(
+            Do(
+                condition=expr,
+                body=do_branch
             )
         )

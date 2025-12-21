@@ -82,6 +82,9 @@ class Tokenizer:
             ('REPEAT', fr'{gsk('ΕΠΑΝΑΛΑΒΕ')}'),
             ('END_LOOP', fr'{gsk('ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ')}'),        # End if
 
+            ('START_LOOP', fr'{gsk('ΑΡΧΗ_ΕΠΑΝΑΛΗΨΗΣ')}'),
+            ('UNTIL', fr'{gsk('ΜΕΧΡΙΣ_ΟΤΟΥ')}'),
+
             ('END_PROGRAM', fr'{gsk('ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ')}'),
 
             ('ASSIGN', r'<-'),             # Assignment operator

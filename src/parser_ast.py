@@ -848,7 +848,32 @@ class ParserAST:
 
 
     def parse_switch(self, branch: _Union[Block, Program]):
-        ...
+        start_line = self.current_token().line
+        self.next_token()
+
+        expr = self.parse_expression()
+        self.expect_eol()
+        
+        branches_node = Block([])
+
+        self.next_line()
+        while self.current_token().kind == "CASE":
+            self.expect("CASE") # consumes the token
+            case_branch = Block([])
+            
+            if self.soft_match("ELSE"):
+                ...
+            else:
+                expr = self.parse_case_expression() # TODO
+            self.parse_block(case_branch, ["CASE","END_SWITCH","END_PROGRAM"])
+            
+            if self.soft_match("END_PROGRAM"):
+                raise SyntaxError(
+                    f"Expected END_SWITCH for the SWITCH scope from line {start_line} but found {self.current_token().kind} instead."
+                )
+            
+            branches_node.body.append(Branch(expr, case_branch))
+        
 
 
     def parse_while(self, branch: _Union[Block, Program]):

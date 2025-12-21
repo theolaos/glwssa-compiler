@@ -164,7 +164,8 @@ class While(Statement):
 @dataclass
 class For(Statement):
     counter: Variable
-    condition: Expression
+    from_expr: Expression
+    to_expr: Expression
     step: _Union[Number, Float] # is this lore accurate?
     body: Block
 
@@ -317,6 +318,10 @@ class ParserAST:
                 log(f"From parse_code_block (parser_ast.py): Found WHILE in main program", tags=["v"])
                 self.parse_while(self.program)
                 self.next_line()
+            elif token_type == "FOR":
+                log(f"From parse_code_block (parser_ast.py): Found FOR in main program", tags=["v"])
+                self.parse_for(self.program)
+                self.next_line()
             elif token_type == 'END_PROGRAM':
                 log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
                 self.expect_token_alone('END_PROGRAM')
@@ -361,6 +366,10 @@ class ParserAST:
             elif token_type == 'WHILE':
                 log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WHILE", tags=["b"])
                 self.parse_while(branch)  # Handle nested if statements
+                self.next_line()
+            elif token_type == 'FOR':
+                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found FOR", tags=["b"])
+                self.parse_for(branch)  # Handle nested if statements
                 self.next_line()
 
             elif token_type in end_tokens:
@@ -825,6 +834,10 @@ class ParserAST:
         )
 
 
+    def parse_switch(self, branch: _Union[Block, Program]):
+        ...
+
+
     def parse_while(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line
         self.next_token()
@@ -843,7 +856,7 @@ class ParserAST:
         self.expect_tokens_line(1)
         if not self.soft_match('END_LOOP'):
             raise SyntaxError(
-                f"Expected END_IF for the IF scope from line {start_line} but found {self.current_token().kind} instead."
+                f"Expected END_LOOP for the WHILE scope from line {start_line} but found {self.current_token().kind} instead."
             )
         log(f"From parse_while (parser_ast.py): Found {'END_LOOP'}", tags=['eta'])
 
@@ -851,5 +864,52 @@ class ParserAST:
             While(
                 condition=condition,
                 body=while_branch
+            )
+        )
+
+    def parse_for(self, branch: _Union[Block, Program]):
+        start_line = self.current_token().line
+
+        self.next_token() # skipping the token for
+        
+        self.match("IDENTIFIER")
+        identifier = self.current_token()
+        if not self.variable_table.get(identifier.value, False):
+            raise SyntaxError(f"Variable {identifier.value} for the FOR loop in line {identifier.line} is not initialized")
+        variable = Variable(identifier.value, self.variable_table[identifier.value])
+
+        self.next_token()
+        self.expect("FROM")
+
+        expr1 = self.parse_expression()
+
+        self.expect("TO")
+
+        expr2 = self.parse_expression()
+
+        step = Number("1")
+        if not self.reached_eol():
+            self.expect("STEP")
+            step = self.parse_expression()
+        
+        self.next_line()
+        for_branch = Block([])
+        self.parse_block(for_branch, ['END_LOOP','END_PROGRAM'])
+
+        log("From parse_for (parser_ast.py): Expecting token 'END_LOOP'", tags=['eta'])
+        self.expect_tokens_line(1)
+        if not self.soft_match('END_LOOP'):
+            raise SyntaxError(
+                f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
+            )
+        log("From parse_for (parser_ast.py): Found 'END_LOOP'", tags=['eta'])
+
+        branch.body.append(
+            For(
+                counter=variable,
+                from_expr=expr1,
+                to_expr=expr2,
+                step=step,
+                body=for_branch
             )
         )

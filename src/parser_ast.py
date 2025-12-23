@@ -157,6 +157,11 @@ class If(Statement):
     else_branch: _Optional[Statement]
 
 @dataclass
+class Switch(Statement):
+    branches: _List[Branch]
+    else_branch: _Optional[Statement]
+
+@dataclass
 class While(Statement):
     condition: Expression
     body: Block

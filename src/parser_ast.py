@@ -38,6 +38,7 @@ from typing import Optional as _Optional
 from typing import Union as _Union
 from typing import List as _List
 from typing import Tuple as _Tuple
+from typing import Callable as _Callable
 
 class Node:
     ...
@@ -235,6 +236,14 @@ class ParserAST:
             "START_LOOP" : self.parse_do,
         }
 
+        self.parse_program_block_dict = self.parse_block_dict.copy()
+        self.parse_program_block_dict.update(
+            {
+                "END_PROGRAM":self.parse_end_program
+            }
+        )
+        self.end_program = False
+
 
     def current_token(self, index: int=0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1)) -> Token:
         """
@@ -287,7 +296,7 @@ class ParserAST:
             if token_type == 'PROGRAM':
                 log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=['debug', 'ct'])
                 self.parse_variables_block()
-                self.parse_code_block()                
+                self.parse_program_block(self.parse_program_block_dict)                
             elif token_type == 'PROCEDURE':
                 log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=['debug', 'ct'])
                 self.parse_procedure()
@@ -304,7 +313,7 @@ class ParserAST:
                 break
 
 
-    def parse_variables_block(self):
+    def parse_variables_block(self) -> None:
         self.expect_tokens_line(2)
         self.next_token()
         self.parse_program_name(self.program)
@@ -320,54 +329,25 @@ class ParserAST:
         self.next_line()
 
 
-    def parse_code_block(self):
+    def parse_program_block(self, 
+            dict_of_acceptable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]]
+        ) -> None:
         while self.current_line < len(self.program_tokens):
             token_type = self.current_token().kind
-            if token_type == 'READ':
+            if token_type in dict_of_acceptable_tokens:
                 log(f"From parse_code_block (parser_ast.py): Found READ in main program.", tags=["v"])
-                self.parse_read(self.program)
+                dict_of_acceptable_tokens[token_type](self.program)
                 self.next_line()
-            elif token_type == 'WRITE':
-                log(f"From parse_code_block (parser_ast.py): Found WRITE in main program", tags=["v"])
-                self.parse_write(self.program)
-                self.next_line()
-            elif token_type == 'IDENTIFIER':
-                log(f"From parse_code_block (parser_ast.py): Found IDENTIFIER/ASSIGNEMENT in main program", tags=["v"])
-                self.parse_assignment(self.program)
-                self.next_line()
-            elif token_type == 'IF':
-                log(f"From parse_code_block (parser_ast.py): Found IF in main program", tags=["v"])
-                self.parse_if(self.program)
-                self.next_line()
-            elif token_type == 'SWITCH':
-                log(f"From parse_code_block (parser_ast.py): Found SWITCH in main program", tags=["v"])
-                self.parse_switch(self.program)
-                self.next_line()
-            elif token_type == "WHILE":
-                log(f"From parse_code_block (parser_ast.py): Found WHILE in main program", tags=["v"])
-                self.parse_while(self.program)
-                self.next_line()
-            elif token_type == "FOR":
-                log(f"From parse_code_block (parser_ast.py): Found FOR in main program", tags=["v"])
-                self.parse_for(self.program)
-                self.next_line()
-            elif token_type == "START_LOOP":
-                log(f"From parse_code_block (parser_ast.py): Found DO WHILE* in main program", tags=["v"])
-                self.parse_do(self.program)
-                self.next_line()
-            elif token_type == 'END_PROGRAM':
-                log(f"From parse_code_block (parser_ast.py): End of program {self.program_name} reached.", tags=["v"])
-                self.expect_token_alone('END_PROGRAM')
-                self.next_line()
-            elif token_type == 'EMPTY_LINE': # theoretically it also works in empty lines
-                self.next_line()
-            
-            # Stop parsing if the current token index reaches the last token
-            if self.current_token_index >= len(self.program_tokens):
+
+            if self.end_program:
                 break
 
 
-    def parse_block(self, branch: _Union[Block, Program], end_tokens: _List[str], inner: bool = False) -> _Union[Block, Program]:
+    def parse_block(self, 
+            branch: _Union[Block, Program], 
+            end_tokens: _List[str], 
+            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]]
+        ) -> None:
         """
         Parse block for and If (ΑΝ), for (ΓΙΑ) blocks  
         
@@ -383,9 +363,9 @@ class ParserAST:
             token = self.current_token()
             token_type = token.kind
 
-            if token_type in self.parse_block_dict:
+            if token_type in recognizable_tokens:
                 log(f"From parse_block (parser_ast.py): Inside IF/LOOP found {token_type}", tags=["b"])
-                self.parse_block_dict[token_type](branch)
+                recognizable_tokens[token_type](branch)
                 self.next_line()
             elif token_type in end_tokens:
                 break
@@ -463,6 +443,7 @@ class ParserAST:
         if not self.current_token_index > len(self.program_tokens[self.current_line])-1:
             raise SyntaxError(f"Expected NEWLINE in the end of line: {self.get_current_line()}. Encountered {self.current_token()} instead")
 
+    # __________________________________________________________________________________________________
 
     def parse_logical_or(self):
         node = self.parse_logical_and()
@@ -694,14 +675,16 @@ class ParserAST:
 
 
     def parse_end_program(self, branch: _Union[Block, Program]):
-        self.expect("END_PROGRAM")
+        self.match("END_PROGRAM")
+        self.end_program = True
 
         if len(self.program_tokens[self.current_line]) == 2:
+            self.next_token()
             self.match("IDENTIFIER")
             if not self.current_token().value == self.program_name:
                 raise SyntaxError(f"Expected the progran name in END_PROGRAM to be {self.program_name}, but found {self.current_token().value}. Line: {self.get_current_line()}")
         else:
-            self.expect_token_alone()
+            self.expect_token_alone("END_PROGRAM")
 
 
     def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
@@ -858,7 +841,7 @@ class ParserAST:
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'])
+        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], self.parse_block_dict)
 
         branches_node.append(Branch(condition_tokens, then_branch))
 
@@ -873,7 +856,7 @@ class ParserAST:
             self.expect_eol()
             self.next_line()
             temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], True)  # Recursively parse the else-if block
+            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], self.parse_block_dict)  # Recursively parse the else-if block
             branches_node.append(Branch(elif_condition_tokens, temp_elif_branch))
 
         if not branches_node:
@@ -886,7 +869,7 @@ class ParserAST:
         if self.soft_match('ELSE'):
             self.expect_token_alone('ELSE')
             self.next_line()
-            self.parse_block(else_branch, ['END_IF','END_PROGRAM'])
+            self.parse_block(else_branch, ['END_IF','END_PROGRAM'], self.parse_block_dict)
         
         # self.expect_token_alone('END_IF')
 
@@ -941,7 +924,7 @@ class ParserAST:
                 raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
             self.next_line()
-            self.parse_block(case_block, ["CASE", "END_SWITCH", "END_PROGRAM"])
+            self.parse_block(case_block, ["CASE", "END_SWITCH", "END_PROGRAM"], self.parse_block_dict)
 
             branches_list.append(Branch(case_expr, case_block))
 
@@ -949,7 +932,7 @@ class ParserAST:
             self.expect("ELSE")
             self.expect_eol()
             self.next_line()
-            self.parse_block(else_block, ["CASE", "END_SWITCH", "END_PROGRAM"])
+            self.parse_block(else_block, ["CASE", "END_SWITCH", "END_PROGRAM"], self.parse_block_dict)
 
         log(f"From parse_if (parser_ast.py): Expecting token END_SWITCH", tags=['eta'])
         self.expect_tokens_line(1)
@@ -974,7 +957,7 @@ class ParserAST:
         while_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(while_branch, ['END_LOOP','END_PROGRAM'])
+        self.parse_block(while_branch, ['END_LOOP','END_PROGRAM'], self.parse_block_dict)
 
         log(f"From parse_while (parser_ast.py): Expecting token {'END_LOOP'}", tags=['eta'])
         self.expect_tokens_line(1)
@@ -1019,7 +1002,7 @@ class ParserAST:
         
         self.next_line()
         for_branch = Block([])
-        self.parse_block(for_branch, ['END_LOOP','END_PROGRAM'])
+        self.parse_block(for_branch, ['END_LOOP','END_PROGRAM'], self.parse_block_dict)
 
         log("From parse_for (parser_ast.py): Expecting token 'END_LOOP'", tags=['eta'])
         self.expect_tokens_line(1)
@@ -1047,7 +1030,7 @@ class ParserAST:
         self.next_line()
 
         do_branch = Block([])
-        self.parse_block(do_branch, ['UNTIL', 'END_PROGRAM'])
+        self.parse_block(do_branch, ['UNTIL', 'END_PROGRAM'], self.parse_block_dict)
 
 
         log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=['eta'])

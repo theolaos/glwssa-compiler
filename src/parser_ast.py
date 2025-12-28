@@ -693,6 +693,17 @@ class ParserAST:
         self.expect_eol()
 
 
+    def parse_end_program(self, branch: _Union[Block, Program]):
+        self.expect("END_PROGRAM")
+
+        if len(self.program_tokens[self.current_line]) == 2:
+            self.match("IDENTIFIER")
+            if not self.current_token().value == self.program_name:
+                raise SyntaxError(f"Expected the progran name in END_PROGRAM to be {self.program_name}, but found {self.current_token().value}. Line: {self.get_current_line()}")
+        else:
+            self.expect_token_alone()
+
+
     def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
         """
         There is a section in the code, named VARIABLES, where you put all the variables at.

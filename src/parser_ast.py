@@ -139,7 +139,7 @@ class VariableAssignement(Statement):
 
 @dataclass
 class Branch:
-    condition: Expression
+    condition: _Union[Expression, _List[Expression]]
     body: Block
 
 @dataclass
@@ -149,6 +149,7 @@ class If(Statement):
 
 @dataclass
 class Switch(Statement):
+    expr: Expression
     branches: _List[Branch]
     else_branch: _Optional[Statement]
 
@@ -221,8 +222,21 @@ class ParserAST:
         self.current_token_index = 0
         self.current_line = 0
 
+        self.in_switch = False
 
-    def current_token(self, index: int =0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1)) -> Token:
+        self.parse_block_dict = {
+            "WRITE": self.parse_write,
+            "READ" : self.parse_read,
+            "IDENTIFIER" : self.parse_assignment,
+            "IF" : self.parse_if,
+            "SWITCH" : self.parse_switch,
+            "WHILE" : self.parse_while,
+            "FOR" : self.parse_for,
+            "START_LOOP" : self.parse_do,
+        }
+
+
+    def current_token(self, index: int=0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1)) -> Token:
         """
         Retrieves the current token. It does not raise a Out of Bounds error, it gives you the default instead.
         
@@ -238,6 +252,16 @@ class ParserAST:
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
+
+
+    def get_current_line(self) -> int:
+        """
+        get_current_line, gets the current line that is being parsed
+        
+        :return: The current line that is being parsed
+        :rtype: int
+        """
+        return self.current_token(-self.current_token_index).line
 
 
     def next_token(self):
@@ -315,6 +339,10 @@ class ParserAST:
                 log(f"From parse_code_block (parser_ast.py): Found IF in main program", tags=["v"])
                 self.parse_if(self.program)
                 self.next_line()
+            elif token_type == 'SWITCH':
+                log(f"From parse_code_block (parser_ast.py): Found SWITCH in main program", tags=["v"])
+                self.parse_switch(self.program)
+                self.next_line()
             elif token_type == "WHILE":
                 log(f"From parse_code_block (parser_ast.py): Found WHILE in main program", tags=["v"])
                 self.parse_while(self.program)
@@ -341,49 +369,28 @@ class ParserAST:
 
     def parse_block(self, branch: _Union[Block, Program], end_tokens: _List[str], inner: bool = False) -> _Union[Block, Program]:
         """
-        Parse block for and If (ΑΝ), for (ΓΙΑ) blocks
+        Parse block for and If (ΑΝ), for (ΓΙΑ) blocks  
         
         :param self: Description
         :param end_tokens: Description
         """
+        # TODO, should be able to pass the tokens that it can recognize
 
-        log(f"From parse_block (parser_ast.py): {self.current_token()}.", tags=["b"])
+        log("From parse_block (parser_ast.py): Started parse block.", tags=["b"])
+        log(f"From parse_block (parser_ast.py): {self.current_token()} in line {self.get_current_line()}.", tags=["b"])
         while self.current_token().kind not in end_tokens:
             log(f"From parse_block (parser_ast.py): {self.current_token()}.", tags=["b"])
             token = self.current_token()
             token_type = token.kind
-            if token_type == 'WRITE':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WRITE", tags=["b"])
-                self.parse_write(branch)
-                self.next_line()
-            elif token_type == 'READ':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found READ", tags=["b"])
-                self.parse_read(branch)
-                self.next_line()
-            elif token_type == 'IDENTIFIER':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found ASSIGN", tags=["b"])
-                self.parse_assignment(branch)
-                self.next_line()
-            elif token_type == 'IF': 
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found IF", tags=["b"])
-                self.parse_if(branch)  # Handle nested if statements
-                self.next_line()
-            elif token_type == 'WHILE':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found WHILE", tags=["b"])
-                self.parse_while(branch)  # Handle nested if statements
-                self.next_line()
-            elif token_type == 'START_LOOP':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found DO WHILE*", tags=["b"])
-                self.parse_do(branch)  # Handle nested if statements
-                self.next_line()
-            elif token_type == 'FOR':
-                log(f"From parse_block (parser_ast.py): Inside IF/ELIF/WHILE/FOR found FOR", tags=["b"])
-                self.parse_for(branch)  # Handle nested if statements
-                self.next_line()
 
+            if token_type in self.parse_block_dict:
+                log(f"From parse_block (parser_ast.py): Inside IF/LOOP found {token_type}", tags=["b"])
+                self.parse_block_dict[token_type](branch)
+                self.next_line()
             elif token_type in end_tokens:
                 break
-        log("From parse_block (parser_ast.py): Finished IF/FOR block.", tags=["b"])
+
+        log("From parse_block (parser_ast.py): Finished parse block.", tags=["b"])
 
 
     def parse_expression(self):
@@ -424,9 +431,7 @@ class ParserAST:
         """
         Checks token, and returns false if the token is not what was expected.
         """
-        if self.current_token().kind != expected_type:
-            return False
-        return True   
+        return not self.current_token().kind != expected_type
 
     
     def match(self, expected_type: str) -> None:
@@ -453,10 +458,10 @@ class ParserAST:
 
     def expect_eol(self) -> None:
         """
-        Expects it to be EOL (End of line), if it is not, it throws an error.
+        Expects it to be EOL (End of line), if it is not, it throws an error. It does not go to the next line
         """
         if not self.current_token_index > len(self.program_tokens[self.current_line])-1:
-            raise SyntaxError(f"Expected NEWLINE in the end of line: {self.current_line}. Encountered {self.current_token()} instead")
+            raise SyntaxError(f"Expected NEWLINE in the end of line: {self.get_current_line()}. Encountered {self.current_token()} instead")
 
 
     def parse_logical_or(self):
@@ -600,7 +605,7 @@ class ParserAST:
             self.expect("FLOAT")
             return Float(token_value)
         
-        elif token_type == "BOOLEAN":
+        elif token_type == "BOOLEAN" and not self.in_switch:
             self.expect("BOOLEAN")
             return Boolean(token_value)
 
@@ -624,6 +629,53 @@ class ParserAST:
                 f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}"
                 )
 
+
+    # __________________________________________________________________________________________________
+
+    def parse_case_expression(self):
+        """
+        CONDITION: expr, > | < | >= | <=
+        PERIOD: Expr, ..
+        ~EXPR: term, ADDITION | SUBTRACTION
+        ~TERM: power, MUL | DIV
+        ~POWER: factor, POW = ^
+        ~FACTOR: NUMBER | FLOAT and LPAREN | RPAREN and VARIABLE = IDENTIFIER = ΜΕΤΑΒΛΗΤΗ
+
+        ~ : These methods are already implemented
+        """        
+        tree = self.parse_switch_condition()
+        log(tree, tags=['expr'])
+        return tree
+    
+
+    def parse_switch_condition(self):
+        token = self.current_token()
+        token_type = token.kind
+        
+        if token_type in {"GT", "LT", "GTE", "LTE"}:
+            self.next_token()
+            node = self.parse_expr()
+            if not (self.reached_eol() or self.current_token().kind == "COMMA"):
+                raise SyntaxError(f"Expected Comma or EOL in line: {self.get_current_line()}, instead found {self.current_token()}")
+            return UnaryOperator(token_type, node)
+        
+        return self.parse_period()
+
+
+    def parse_period(self):
+        node = self.parse_expr()
+
+        token = self.current_token()
+        token_type = token.kind
+
+        if token_type == "PERIOD": # there cannot be multiple periods
+            self.expect("PERIOD")
+            self.in_switch = True
+            right = self.parse_expr()
+            self.in_switch = False
+            node = BinaryOperation(node, token_type, right)
+
+        return node
 
     # __________________________________________________________________________________________________
 
@@ -694,7 +746,7 @@ class ParserAST:
             if self.reached_eol():
                 break
             
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}, {self.current_token(-1)[0]}")
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind}, {self.current_token(-1).kind} in line {self.get_current_line()}")
 
         if not variables:
             raise SyntaxError("Expected at least one variable name")
@@ -844,33 +896,60 @@ class ParserAST:
 
 
     def parse_switch(self, branch: _Union[Block, Program]):
-        start_line = self.current_token().line
-        self.next_token()
+        self.found_else = False
+        start_line = self.current_token().line # for better error messages
+        self.expect("SWITCH")
 
-        expr = self.parse_expression()
+        switch_expr = self.parse_expression() # ΕΠΙΛΕΞΕ expr
         self.expect_eol()
         
-        branches_node = Block([])
+        branches_list = []
+        else_block = Block([])
 
         self.next_line()
         while self.current_token().kind == "CASE":
             self.expect("CASE") # consumes the token
-            case_branch = Block([])
-            
-            if self.soft_match("ELSE"):
-                ...
-            else:
-                expr = self.parse_case_expression() # TODO
-            self.parse_block(case_branch, ["CASE","END_SWITCH","END_PROGRAM"])
-            
-            if self.soft_match("END_PROGRAM"):
-                raise SyntaxError(
-                    f"Expected END_SWITCH for the SWITCH scope from line {start_line} but found {self.current_token().kind} instead."
-                )
-            
-            branches_node.body.append(Branch(expr, case_branch))
-        
+            case_block = Block([])
+            case_expr = []
 
+            if self.soft_match("ELSE"):
+                self.found_else = True
+                break
+
+            while True:
+                expr = self.parse_case_expression()
+                case_expr.append(expr)
+
+                if self.soft_match('COMMA'):
+                    self.next_token()
+                    continue
+
+                if self.reached_eol():
+                    break
+                
+                raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+
+            self.next_line()
+            self.parse_block(case_block, ["CASE", "END_SWITCH", "END_PROGRAM"])
+
+            branches_list.append(Branch(case_expr, case_block))
+
+        if self.soft_match("ELSE"):
+            self.expect("ELSE")
+            self.expect_eol()
+            self.next_line()
+            self.parse_block(else_block, ["CASE", "END_SWITCH", "END_PROGRAM"])
+
+        log(f"From parse_if (parser_ast.py): Expecting token END_SWITCH", tags=['eta'])
+        self.expect_tokens_line(1)
+        if not self.soft_match('END_SWITCH'):
+            raise SyntaxError(
+                f"Expected END_SWITCH for the SWITCH scope from line {start_line} but found {self.current_token().kind} instead."
+            )
+        log(f"From parse_if (parser_ast.py): Found END_SWITCH", tags=['eta'])
+        
+        branch.body.append(Switch(switch_expr, branches_list, else_block))
+        
 
     def parse_while(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line

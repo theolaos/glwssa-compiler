@@ -52,6 +52,7 @@ class Tokenizer:
         self.token_specification = [
             ('PROGRAM', fr'{gsk('ΠΡΟΓΡΑΜΜΑ')}'),      # Program declaration
             ('START', fr'{gsk('ΑΡΧΗ')}'),             # Program code starts, and variable declaration is finished
+            ('CONSTANTS', fr'{gsk('ΣΤΑΘΕΡΕΣ')}'),
             ('VARIABLES', fr'{gsk('ΜΕΤΑΒΛΗΤΕΣ')}'),   # Variables section
             ('INTEGERS', fr'{gsk('ΑΚΕΡΑΙΕΣ')}'),      # Integer type
             ('CHARACTERS', fr'{gsk('ΧΑΡΑΚΤΗΡΕΣ')}'),  # Character type
@@ -63,6 +64,10 @@ class Tokenizer:
             ('ELSE_IF', fr'{gsk('ΑΛΛΙΩΣ_ΑΝ')}'),      # Then keyword
             ('ELSE', fr'{gsk('ΑΛΛΙΩΣ')}'),            # Else keyword
             ('END_IF', fr'{gsk('ΤΕΛΟΣ_ΑΝ')}'),        # End if
+
+            ('SWITCH', fr'{gsk('ΕΠΙΛΕΞΕ')}'),
+            ('CASE', fr'{gsk('ΠΕΡΙΠΤΩΣΗ')}'),
+            ('END_SWITCH', fr'{gsk('ΤΕΛΟΣ_ΕΠΙΛΟΓΩΝ')}'),
             
             ('FOR', fr'{gsk('ΓΙΑ')}'),
             ('FROM', fr'{gsk('ΑΠΟ')}'),
@@ -99,6 +104,7 @@ class Tokenizer:
             ('BUILTIN_FUNCTION', fr'{gsk('Α_Μ')}|{gsk('Τ_Ρ')}|{gsk('Α_Τ')}'), # It might be better to use multiple different tokens for each built in function
 
             ('STRING', r'"[^"]*"'),
+            ('PERIOD', r'\.\.'),
             ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'\d+'), # The + in regex means that all the sequential numebrs are counted as one
             ('BOOLEAN', fr'{gsk('ΑΛΗΘΗΣ')}|{gsk('ΨΕΥΔΗΣ')}'),

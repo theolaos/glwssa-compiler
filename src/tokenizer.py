@@ -103,7 +103,9 @@ class Tokenizer:
             ('FUNCTION', fr'{gsk('ΣΥΝΑΡΤΗΣΗ')}'),
             ('BUILTIN_FUNCTION', fr'{gsk('Α_Μ')}|{gsk('Τ_Ρ')}|{gsk('Α_Τ')}'), # It might be better to use multiple different tokens for each built in function
 
-            ('STRING', r'"[^"]*"'),
+            ('STRING', r'"[^"]*"|\'[^\']*\''),
+            ('INVALID_STRING_1', r'"[^"]*\''),            
+            ('INVALID_STRING_2', r'\'[^\']*"'),  
             ('PERIOD', r'\.\.'),
             ('FLOAT', r'-?\d+\.\d+'),
             ('NUMBER', r'\d+'), # The + in regex means that all the sequential numebrs are counted as one
@@ -111,6 +113,9 @@ class Tokenizer:
 
             ('COLON', r':'),
             ('COMMA', r','),
+
+            ('LBRACKET', r'\['), # for arrays
+            ('RBRACKET', r'\]'),
 
             ('LPAREN', r'\('),
             ('RPAREN', r'\)'),
@@ -158,6 +163,12 @@ class Tokenizer:
                 if kind == 'MISMATCH':
                     raise SyntaxError(f"Unexpected character '{value}' on line {line_no}")
 
+                if kind == "INVALID_STRING_1":
+                    raise SyntaxError(f"Unexpected character \' on line {line_no} for string {value}")
+                
+                if kind == "INVALID_STRING_2":
+                    raise SyntaxError(f"Unexpected character \" on line {line_no} for string {value}")
+
                 if program_name_expected:
                     if kind == 'GREEK_IDENTIFIER':
                         kind = 'PROGRAM_NAME'
@@ -183,7 +194,7 @@ class Tokenizer:
 
                 elif kind == 'BOOLEAN':
                     value = 'true' if value == 'ΑΛΗΘΗΣ' else 'false'
-                line_tokens.append(Token(kind, value, line_no, column))
+                line_tokens.append(Token(kind, value, line_no, column, match.start(), match.end()-1))
                 column += 1
 
             if line_tokens:

@@ -90,7 +90,14 @@ class ProgramName(Expression):
 @dataclass
 class Variable(Expression):
     name: str
-    var_type: type
+    var_type: str
+
+
+@dataclass
+class Array(Expression):
+    name: str
+    dim: _List[Expression]
+    var_type: str
 
 
 @dataclass
@@ -127,6 +134,17 @@ class VariableDeclaration(Statement):
     name: str
     var_type: type
 
+
+@dataclass
+class ArrayDeclaration(Statement):
+    """
+    When the variable is declared in glwssa it has Public, scope and the type MUST be declared
+    """
+    name: str
+    dim: _List[Expression]
+    var_type: type
+
+
 @dataclass
 class ConstantDeclaration(Statement):
     name: str
@@ -148,10 +166,12 @@ class Branch:
     condition: _Union[Expression, _List[Expression]]
     body: Block
 
+
 @dataclass
 class If(Statement):
     branches: _List[Branch]
     else_branch: _Optional[Statement]
+
 
 @dataclass
 class Switch(Statement):
@@ -159,10 +179,12 @@ class Switch(Statement):
     branches: _List[Branch]
     else_branch: _Optional[Statement]
 
+
 @dataclass
 class While(Statement):
     condition: Expression
     body: Block
+
 
 @dataclass
 class For(Statement):
@@ -172,10 +194,12 @@ class For(Statement):
     step: _Union[Number, Float] # is this lore accurate?
     body: Block
 
+
 @dataclass
 class Do(Statement):
     condition: Expression
     body: Block
+
 
 @dataclass
 class ProcedureDecl(Statement):
@@ -245,13 +269,13 @@ class ParserAST:
         self.parse_program_block_dict = self.parse_block_dict.copy()
         self.parse_program_block_dict.update(
             {
-                "END_PROGRAM":self.parse_end_program
+                "END_PROGRAM" : self.parse_end_program
             }
         )
         self.end_program = False
 
 
-    def current_token(self, index: int=0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1)) -> Token:
+    def current_token(self, index: int=0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1, -1, -1)) -> Token:
         """
         Retrieves the current token. It does not raise a Out of Bounds error, it gives you the default instead.
         
@@ -263,7 +287,7 @@ class ParserAST:
         :rtype: Tuple[str, str]
         """
         if len(self.program_tokens[self.current_line]) == 0:
-            return Token('EMPTY_LINE', 'NO_VALUE', 0, self.current_line)
+            return Token('EMPTY_LINE', 'NO_VALUE', 0, self.current_line, 0, 0)
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
@@ -383,22 +407,6 @@ class ParserAST:
 
         log("From parse_block (parser_ast.py): Finished parse block.", tags=["b"])
 
-
-    def parse_expression(self):
-        """
-        OR: and, OR = Ή
-        AND: not, AND = KAI
-        NOT: condition, NOT = ΟΧΙ (unary expression)
-        CONDITION: expr, > | < | >= | <= | == | !=
-        EXPR: term, ADDITION | SUBTRACTION
-        TERM: power, MUL | DIV
-        POWER: factor, POW = ^
-        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN and VARIABLE = IDENTIFIER = ΜΕΤΑΒΛΗΤΗ
-        """        
-        tree = self.parse_logical_or()
-        log(tree, tags=['expr'])
-        return tree
-
     # __________________________________________________________________________________________________
 
     def expect_tokens_line(self, n: int) -> None:
@@ -418,11 +426,11 @@ class ParserAST:
         log(f"From expect_token_alone (parser_ast.py): Found {expected_type}", tags=['eta'])
 
 
-    def soft_match(self, expected_type) -> bool:
+    def soft_match(self, expected_type: str, index: int = 0) -> bool:
         """
         Checks token, and returns false if the token is not what was expected.
         """
-        return not self.current_token().kind != expected_type
+        return not self.current_token(index).kind != expected_type
 
     
     def match(self, expected_type: str) -> None:
@@ -455,6 +463,25 @@ class ParserAST:
             raise SyntaxError(f"Expected NEWLINE in the end of line: {self.get_current_line()}. Encountered {self.current_token()} instead")
 
     # __________________________________________________________________________________________________
+
+    def parse_expression(self):
+        """
+        OR: and, OR = Ή
+        AND: not, AND = KAI
+        NOT: condition, NOT = ΟΧΙ (unary expression)
+        CONDITION: expr, > | < | >= | <= | == | !=
+        EXPR: term, ADDITION | SUBTRACTION
+        TERM: power, MUL | DIV
+        POWER: factor, POW = ^
+        FACTOR: NUMBER | FLOAT and LPAREN | RPAREN and VARIABLE = IDENTIFIER = ΜΕΤΑΒΛΗΤΗ
+        """        
+        tree = self.parse_logical_or()
+        log(tree, tags=['expr'])
+        return tree
+
+    # __________________________________________________________________________________________________
+
+
 
     def parse_logical_or(self):
         node = self.parse_logical_and()
@@ -603,9 +630,32 @@ class ParserAST:
 
         elif token_type == "IDENTIFIER":
             self.expect("IDENTIFIER")
+ 
             if not self.variable_table.get(token_value, False):
                 raise SyntaxError(f"Variable {token_value} does not exist, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}")
-            return Variable(token_value, self.variable_table[token_value])
+  
+            if self.soft_match("LBRACKET"):
+                dim: _List[Expression] = []
+                self.expect("LBRACKET")
+                
+                while True:
+                    expr = self.parse_expression()
+                    dim.append(expr)
+
+                    if self.soft_match('COMMA'):
+                        self.next_token()
+                        continue
+
+                    if self.soft_match("RBRACKET"):
+                        break
+
+                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+                
+                self.next_token() # TODO I feel like this will bite me in the ass
+                return Array(token_value, dim, self.variable_table[token_value])
+            else:
+                return Variable(token_value, self.variable_table[token_value])
+            
         elif token_type == "STRING":
             self.expect("STRING")
             return String(token_value)
@@ -697,33 +747,6 @@ class ParserAST:
             self.expect_token_alone("END_PROGRAM")
 
 
-    def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
-        """
-        There is a section in the code, named VARIABLES, where you put all the variables at.
-
-        This method creates the nodes for that section.
-        """
-        # parser starts after VARIABLE line
-        
-        log("From parse_declaration (parser_ast.py): Started parsing Variable declaration", tags=["vd"])
-
-        while self.current_token().kind in TYPE_MAP:
-            token_type = self.current_token().kind
-
-            py_type = TYPE_MAP[token_type]
-            self.next_token() # skip type token
-
-            names = self.read_variable_list()
-            log("From parse_declaration (parser_ast.py): Creating Node for VariableDeclaration with name:", names, f"Type: {TYPE_MAP[token_type]}", tags=["vd"])
-            
-            for name in names:
-                self.variable_table[name] = py_type
-                branch.body.append(VariableDeclaration(name, py_type))
-
-            self.expect_eol()
-            self.next_line()
-
-
     def parse_constant_declaration(self, branch: _Union[Block, Program]):
         log("From parse_constant_declaration (parser_ast.py): Started parsing constants ", tags=["vd"])
 
@@ -747,7 +770,49 @@ class ParserAST:
             )
 
 
-    def read_variable_list(self):
+    def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
+        """
+        There is a section in the code, named VARIABLES, where you put all the variables at.
+
+        This method creates the nodes for that section.
+        """
+        # parser starts after VARIABLE line
+        
+        log("From parse_declaration (parser_ast.py): Started parsing Variable declaration", tags=["vd"])
+
+        while self.current_token().kind in TYPE_MAP:
+            token_type = self.current_token().kind
+
+            py_type = TYPE_MAP[token_type]
+            self.next_token() # skip type token
+
+            variables: _List[_Union[Variable, Array]] = self._read_variable_list(py_type)
+            log("From parse_declaration (parser_ast.py): Creating Node with list of variables:", variables, f"Type: {TYPE_MAP[token_type]}", tags=["vd"])
+            
+            for var in variables:
+                self.variable_table[var.name] = py_type
+                branch.body.append(VariableDeclaration(var.name, py_type) if type(var) == Variable else ArrayDeclaration(var.name, var.dim, py_type))
+                log("From parse_declaration (parser_ast.py): Created node", 
+                    "VariableDeclaration" if type(var) == Variable else "ArrayDeclaration",
+                    "with name:", var, f"Type: {TYPE_MAP[token_type]}", 
+                    
+                    tags=["vd"]
+                )
+
+            self.expect_eol()
+            self.next_line()
+
+
+    def _read_variable_list(self, var_type: str) -> _List[_Union[Variable, Array]]:
+        """
+        Docstring for read_variable_list
+        
+        :param type: Should be a type of this kind INTEGERS, REAL, CHARACTERS, LOGIC 
+        :type type: str in INTEGERS, REAL, CHARACTERS, LOGIC
+        :return: Returns either a List of variables with arrays
+        :rtype: List[Variable]
+        """
+        
         log("From read_variable_list (parser_ast.py): Parsing the variable list", tags=["vd"])
 
         variables = []
@@ -758,11 +823,43 @@ class ParserAST:
 
         # read variable names
         while self.current_token():
+            array = False
             
             self.match('IDENTIFIER')
             
             var_name = self.current_token().value
-            variables.append(var_name)
+
+            dim: _List[Expression] = []
+            # For GLWSSA++
+            # while self.soft_match("LBRACKET", 1): # peaking into the next token to see if it is an array.
+            #     array = True
+            #     self.next_token()
+            #     self.expect("RBRACKET")
+            #     expr = self.parse_expression()
+            #     dim.append(expr)
+            #     self.match("RBRACKET")
+            if self.soft_match("LBRACKET", 1):
+                array = True
+                self.next_token()
+                self.expect("LBRACKET")
+                
+                while True:
+                    expr = self.parse_expression()
+                    dim.append(expr)
+
+                    if self.soft_match('COMMA'):
+                        self.next_token()
+                        continue
+
+                    if self.soft_match("RBRACKET"):
+                        break
+
+                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+
+
+            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
+
+            variables.append(var)
             
             self.next_token()
 
@@ -773,7 +870,7 @@ class ParserAST:
             if self.reached_eol():
                 break
             
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind}, {self.current_token(-1).kind} in line {self.get_current_line()}")
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
         if not variables:
             raise SyntaxError("Expected at least one variable name")
@@ -829,6 +926,9 @@ class ParserAST:
 
             if self.reached_eol():
                 break
+
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+
 
         self.expect_eol()
         branch.body.append(Write(expr_list))
@@ -1084,3 +1184,16 @@ class ParserAST:
                 body=do_branch
             )
         )
+
+
+    def parse_block_procedure(self, branch: _Union[Block, Program]):
+        ...
+
+    # __________________________________________________________________________________________________
+
+    def parse_function(self, branch: _Union[Block, Program]):
+        ...
+
+    
+    def parse_procedure(self, branch: _Union[Block, Program]):
+        ...

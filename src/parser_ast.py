@@ -127,6 +127,11 @@ class VariableDeclaration(Statement):
     name: str
     var_type: type
 
+@dataclass
+class ConstantDeclaration(Statement):
+    name: str
+    expr: Expression
+
 
 @dataclass
 class VariableAssignement(Statement):
@@ -216,6 +221,7 @@ class ParserAST:
         self.tokens = token
 
         self.variable_table: dict[str, type] = {}
+        self.constants_table: dict[str, type] = {}
         self.program = Program([])
         self.program_name = "a"
         self.code: _List[str] = []
@@ -317,15 +323,20 @@ class ParserAST:
         self.expect_tokens_line(2)
         self.next_token()
         self.parse_program_name(self.program)
-        log(f'From parse_variables_block (parser_ast.py): Got programs name {self.program_name}', tags=['pvb'])
+        log(f"From parse_variables_block (parser_ast.py): Got programs name {self.program_name}", tags=["pvb"])
         self.next_line()
-        self.expect_token_alone('VARIABLES')
+        if self.soft_match("CONSTANTS"):
+            self.expect_token_alone("CONSTANTS")
+            self.next_line()
+            self.parse_constant_declaration(self.program)
+            self.next_line()
+        self.expect_token_alone("VARIABLES")
         self.next_line()
 
         self.parse_declaration(self.program)
-        log(f'From parse_variables_block (parser_ast.py): Finished parsing the variables', tags=['pvb'])
+        log(f"From parse_variables_block (parser_ast.py): Finished parsing the variables", tags=["pvb"])
         
-        self.expect_token_alone('START')
+        self.expect_token_alone("START")
         self.next_line()
 
 
@@ -660,7 +671,6 @@ class ParserAST:
 
     # __________________________________________________________________________________________________
 
-
     def parse_program_name(self, branch: _Union[Block, Program]):
         """
         Adds the first Node of the program, which should be the name.
@@ -695,7 +705,7 @@ class ParserAST:
         """
         # parser starts after VARIABLE line
         
-        log("From parse_declaration (parser_ast.py): Started Variable ", tags=["vd"])
+        log("From parse_declaration (parser_ast.py): Started parsing Variable declaration", tags=["vd"])
 
         while self.current_token().kind in TYPE_MAP:
             token_type = self.current_token().kind
@@ -712,6 +722,29 @@ class ParserAST:
 
             self.expect_eol()
             self.next_line()
+
+
+    def parse_constant_declaration(self, branch: _Union[Block, Program]):
+        log("From parse_constant_declaration (parser_ast.py): Started parsing constants ", tags=["vd"])
+
+        while self.soft_match("IDENTIFIER"):
+            
+
+            self.match("IDENTIFIER")
+            constant_name = self.current_token().value
+            self.next_token()
+            self.expect("EQ")
+            expr = self.parse_expression()
+            
+            self.expect_eol()
+
+            # self.constants_table[]
+            branch.body.append(
+                ConstantDeclaration(
+                    constant_name, 
+                    expr
+                )
+            )
 
 
     def read_variable_list(self):

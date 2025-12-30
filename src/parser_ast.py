@@ -822,7 +822,7 @@ class ParserAST:
         self.next_token()  # Skip the colon
 
         # read variable names
-        while self.current_token():
+        while True:
             array = False
             
             self.match('IDENTIFIER')
@@ -885,15 +885,43 @@ class ParserAST:
 
         read = Read([])
         
-        while self.current_token():
+        while True:
             
             self.match('IDENTIFIER')
             token = self.current_token()
             var_name = token.value
+            var_type = None
             try:
-                read.variable_list.append(Variable(var_name, self.variable_table[var_name]))
+                var_type = self.variable_table[var_name]
             except KeyError as e:
                 raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
+
+            array = False
+
+            dim: _List[Expression] = []
+            if self.soft_match("LBRACKET", 1):
+                array = True
+                self.next_token()
+                self.expect("LBRACKET")
+                
+                while True:
+                    expr = self.parse_expression()
+                    dim.append(expr)
+
+                    if self.soft_match('COMMA'):
+                        self.next_token()
+                        continue
+
+                    if self.soft_match("RBRACKET"):
+                        break
+
+                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+
+
+            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
+
+            read.variable_list.append(var)
+            
             self.next_token()
 
             if self.soft_match('COMMA'):
@@ -903,8 +931,8 @@ class ParserAST:
             if self.reached_eol():
                 break
             
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token()[0]}")
-        
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+
         self.expect_eol()
         log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_token().line - 1}", tags=["r"])
         branch.body.append(read)

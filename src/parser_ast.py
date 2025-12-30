@@ -202,13 +202,19 @@ class Do(Statement):
 
 
 @dataclass
+class CallProcedure(Statement):
+    name: str
+    params: list[VariableDeclaration]
+
+
+@dataclass
 class ProcedureDecl(Statement):
     """
     In GLWSSA you have an additional function type, named procedure. 
     Which doesn't return a variable. But any variables that you pass and change will be changed globally.
     """
     name: str
-    params: list[VariableDeclaration]
+    params: list[Variable]
     body: Block
 
 
@@ -1215,7 +1221,64 @@ class ParserAST:
 
 
     def parse_block_procedure(self, branch: _Union[Block, Program]):
-        ...
+        self.expect("CALL")
+        self.match("IDENTIFIER")
+        procedure_name = self.current_token().value
+        self.expect("LPAREN")
+        args = []
+        while True:
+            
+            self.match('IDENTIFIER')
+            token = self.current_token()
+            var_name = token.value
+            var_type = None
+            try:
+                var_type = self.variable_table[var_name]
+            except KeyError as e:
+                raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
+
+            array = False
+
+            dim: _List[Expression] = []
+            if self.soft_match("LBRACKET", 1):
+                array = True
+                self.next_token()
+                self.expect("LBRACKET")
+                
+                while True:
+                    expr = self.parse_expression()
+                    dim.append(expr)
+
+                    if self.soft_match('COMMA'):
+                        self.next_token()
+                        continue
+
+                    if self.soft_match("RBRACKET"):
+                        break
+
+                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+
+
+            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
+
+            args.append(var)
+            
+            self.next_token()
+
+            if self.soft_match("COMMA"):
+                self.next_token()
+                continue
+
+            if self.soft_match("RPAREN"):
+                break
+            
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+
+        self.expect("RPAREN")
+        self.expect_eol()
+
+        branch.body.append(CallProcedure(procedure_name, args))
+
 
     # __________________________________________________________________________________________________
 

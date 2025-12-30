@@ -99,7 +99,10 @@ class Tokenizer:
             ('AND', fr'{gsk('ΚΑΙ')}'),
             ('OR', fr'{gsk('Ή')}|{gsk('Η')}'),
 
+            ('CALL', fr'{gsk('ΚΑΛΕΣΕ')}'),
             ('PROCEDURE', fr'{gsk('ΔΙΑΔΙΚΑΣΙΑ')}'),
+            ('END_PROCEDURE', fr'{gsk('ΤΕΛΟΣ_ΔΙΑΔΙΚΑΣΙΑΣ')}'),
+
             ('FUNCTION', fr'{gsk('ΣΥΝΑΡΤΗΣΗ')}'),
             ('BUILTIN_FUNCTION', fr'{gsk('Α_Μ')}|{gsk('Τ_Ρ')}|{gsk('Α_Τ')}'), # It might be better to use multiple different tokens for each built in function
 

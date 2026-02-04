@@ -59,6 +59,21 @@ class Expression(Node):
 class Program:
     body: list[Statement]
 
+
+@dataclass
+class Procedure:
+    name: str
+    params: list[Statement]
+    body: list[Statement]
+
+
+@dataclass 
+class Function:
+    name: str
+    params: list[Statement]
+    body: list[Statement]
+    val_return: Expression
+
 # Expressions __________________________________________________________________________________________
 
 @dataclass
@@ -204,7 +219,14 @@ class Do(Statement):
 @dataclass
 class CallProcedure(Statement):
     name: str
-    params: list[VariableDeclaration]
+    params: list[Variable]
+
+
+@dataclass 
+class CallFunction(Statement):
+    name: str
+    params: list[Expression]
+    func_type: str
 
 
 @dataclass
@@ -251,6 +273,10 @@ class ParserAST:
         self.tokens = token
 
         self.program = Program([])
+
+        self.procedures: _List[Procedure] = []
+        self.functions: _List[Function] = []
+
         self.program_name = "a"
         self.code: _List[str] = []
 
@@ -334,10 +360,12 @@ class ParserAST:
                 self.parse_program_block(self.parse_program_block_dict)                
             elif token_type == "PROCEDURE":
                 log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=["debug", "ct"])
-                self.parse_procedure()
+                procedure: Procedure = self.parse_procedure()
+                self.procedures.append(procedure)
             elif token_type == "FUNCTION":
                 log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=["debug", "ct"])
-                self.parse_function()
+                function: Function = self.parse_function()
+                self.functions.append(function)
             elif token_type == "EMPTY_LINE":
                 log(f"From create tree(parser_ast.py): Found an empty line {self.current_line}, skipping it", tags=["debug", "ct"])
                 self.next_line()
@@ -485,7 +513,6 @@ class ParserAST:
         return tree
 
     # __________________________________________________________________________________________________
-
 
 
     def parse_logical_or(self):
@@ -636,9 +663,10 @@ class ParserAST:
         elif token_type == "IDENTIFIER":
             self.expect("IDENTIFIER")
  
-            if self.soft_match("LBRACKET"):
+            if self.soft_match("LBRACKET") or self.soft_match("LPAREN"):
+                token = self.current_token().kind
                 dim: _List[Expression] = []
-                self.expect("LBRACKET")
+                self.expect(token)
                 
                 while True:
                     expr = self.parse_expression()
@@ -648,13 +676,14 @@ class ParserAST:
                         self.next_token()
                         continue
 
-                    if self.soft_match("RBRACKET"):
+                    if self.soft_match(f"R{token[1:]}"): # apperantly brackets are [start:end:step] (?)
                         break
 
-                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+                    raise SyntaxError(f"Expected COMMA or R{token[1:]}, but found {self.current_token().kind} in line {self.get_current_line()}")
                 
                 self.next_token() # TODO I feel like this will bite me in the ass
-                return Array(token_value, dim, None)
+                return Array(token_value, dim, None) if token == "LBRACKET" else CallFunction(token_value, dim, None)
+
             else:
                 return Variable(token_value, None)
             
@@ -673,8 +702,6 @@ class ParserAST:
                 f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}"
                 )
 
-
-    def parse_call_function(): ...
 
     # __________________________________________________________________________________________________
 
@@ -1203,9 +1230,9 @@ class ParserAST:
     # __________________________________________________________________________________________________
 
 
-    def parse_function(self, branch: _Union[Block, Program]):
+    def parse_function(self):
         ...
 
     
-    def parse_procedure(self, branch: _Union[Block, Program]):
+    def parse_procedure(self):
         ...

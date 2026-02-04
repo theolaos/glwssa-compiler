@@ -11,21 +11,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-VALID_VARIABLE_TYPES = {'INTEGERS', 'CHARACTERS', 'REAL', 'LOGICAL'}
+VALID_VARIABLE_TYPES = {"INTEGERS", "CHARACTERS", "REAL", "LOGICAL"}
 VALID_PROCESS_EXPRESSION_TOKENS = {
-    'IDENTIFIER',
-    'NUMBER', 'FLOAT', 'STRING', 'LOGICAL', 
-    'OP',
-    'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ', 
-    'NOT', 'AND', 'OR', 'MOD', 'DIV',
-    'BUILTIN_FUNCTION', 'LPAREN', 'RPAREN'
+    "IDENTIFIER",
+    "NUMBER", "FLOAT", "STRING", "LOGICAL", 
+    "OP",
+    "GT", "LT", "GTE", "LTE", "NEQ", "EQ", 
+    "NOT", "AND", "OR", "MOD", "DIV",
+    "BUILTIN_FUNCTION", "LPAREN", "RPAREN"
 }
 
 TYPE_MAP = {
-    'INTEGERS': "int",
-    'CHARACTERS': "string",
-    'REAL': "float",
-    'LOGICAL': "bool",
+    "INTEGERS": "int",
+    "CHARACTERS": "string",
+    "REAL": "float",
+    "LOGICAL": "bool",
 }
 
 from dataclasses import dataclass
@@ -211,7 +211,7 @@ class CallProcedure(Statement):
 class ProcedureDecl(Statement):
     """
     In GLWSSA you have an additional function type, named procedure. 
-    Which doesn't return a variable. But any variables that you pass and change will be changed globally.
+    Which doesn"t return a variable. But any variables that you pass and change will be changed globally.
     """
     name: str
     params: list[Variable]
@@ -280,7 +280,7 @@ class ParserAST:
         self.end_program = False
 
 
-    def current_token(self, index: int=0, default: Token = Token('NO_TOKEN','NO_VALUE', -1, -1, -1, -1)) -> Token:
+    def current_token(self, index: int=0, default: Token = Token("NO_TOKEN","NO_VALUE", -1, -1, -1, -1)) -> Token:
         """
         Retrieves the current token. It does not raise a Out of Bounds error, it gives you the default instead.
         
@@ -292,7 +292,7 @@ class ParserAST:
         :rtype: Tuple[str, str]
         """
         if len(self.program_tokens[self.current_line]) == 0:
-            return Token('EMPTY_LINE', 'NO_VALUE', 0, self.current_line, 0, 0)
+            return Token("EMPTY_LINE", "NO_VALUE", 0, self.current_line, 0, 0)
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
         return default  # Return None if out of bounds
@@ -326,25 +326,25 @@ class ParserAST:
         while self.current_line < len(self.program_tokens):
             token_type = self.current_token().kind
 
-            log(f"From create tree(parser_ast.py): Parsing line {self.current_line}, index {self.current_token_index}. Current token type is {token_type}", tags=['debug', 'ct'])
+            log(f"From create tree(parser_ast.py): Parsing line {self.current_line}, index {self.current_token_index}. Current token type is {token_type}", tags=["debug", "ct"])
 
-            if token_type == 'PROGRAM':
-                log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=['debug', 'ct'])
+            if token_type == "PROGRAM":
+                log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=["debug", "ct"])
                 self.parse_variables_block()
                 self.parse_program_block(self.parse_program_block_dict)                
-            elif token_type == 'PROCEDURE':
-                log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=['debug', 'ct'])
+            elif token_type == "PROCEDURE":
+                log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=["debug", "ct"])
                 self.parse_procedure()
-            elif token_type == 'FUNCTION':
-                log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=['debug', 'ct'])
+            elif token_type == "FUNCTION":
+                log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=["debug", "ct"])
                 self.parse_function()
-            elif token_type == 'EMPTY_LINE':
-                log(f"From create tree(parser_ast.py): Found an empty line {self.current_line}, skipping it", tags=['debug', 'ct'])
+            elif token_type == "EMPTY_LINE":
+                log(f"From create tree(parser_ast.py): Found an empty line {self.current_line}, skipping it", tags=["debug", "ct"])
                 self.next_line()
                 continue
             
             if self.current_line >= len(self.program_tokens):
-                log("From create tree(parser_ast.py): Finished creating tree", tags=['ct'])
+                log("From create tree(parser_ast.py): Finished creating tree", tags=["ct"])
                 break
 
 
@@ -425,10 +425,10 @@ class ParserAST:
         """
         Checks if the token is alone in the the line. IT DOES NOT GO TO THE NEXT LINE.
         """
-        log(f"From expect_token_alone (parser_ast.py): Expecting token {expected_type}", tags=['eta'])
+        log(f"From expect_token_alone (parser_ast.py): Expecting token {expected_type}", tags=["eta"])
         self.expect_tokens_line(1)
         self.match(expected_type)
-        log(f"From expect_token_alone (parser_ast.py): Found {expected_type}", tags=['eta'])
+        log(f"From expect_token_alone (parser_ast.py): Found {expected_type}", tags=["eta"])
 
 
     def soft_match(self, expected_type: str, index: int = 0) -> bool:
@@ -481,7 +481,7 @@ class ParserAST:
         FACTOR: NUMBER | FLOAT and LPAREN | RPAREN and VARIABLE = IDENTIFIER = ΜΕΤΑΒΛΗΤΗ
         """        
         tree = self.parse_logical_or()
-        log(tree, tags=['expr'])
+        log(tree, tags=["expr"])
         return tree
 
     # __________________________________________________________________________________________________
@@ -494,9 +494,9 @@ class ParserAST:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
 
-        while token_type == 'OR':
-            self.expect('OR')
-            node = BinaryOperation(left=node, operator='OR', right=self.parse_logical_and())
+        while token_type == "OR":
+            self.expect("OR")
+            node = BinaryOperation(left=node, operator="OR", right=self.parse_logical_and())
 
             token_type, token_value = self.current_token()
 
@@ -509,9 +509,9 @@ class ParserAST:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
 
-        while token_type == 'AND':
-            self.expect('AND')
-            node = BinaryOperation(left=node, operator='AND', right=self.parse_condition())
+        while token_type == "AND":
+            self.expect("AND")
+            node = BinaryOperation(left=node, operator="AND", right=self.parse_condition())
 
             token = self.current_token()
             token_type, token_value = token.kind, token.value
@@ -528,7 +528,7 @@ class ParserAST:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
 
-        while token_type in {'GT', 'LT', 'GTE', 'LTE', 'NEQ', 'EQ'}:
+        while token_type in {"GT", "LT", "GTE", "LTE", "NEQ", "EQ"}:
             op = token_type
             self.expect(token_type)
             
@@ -547,7 +547,7 @@ class ParserAST:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
 
-        while token_type in {'PLUS', 'MINUS'}:
+        while token_type in {"PLUS", "MINUS"}:
 
             op = token_type
             self.expect(token_type)
@@ -567,7 +567,7 @@ class ParserAST:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
 
-        while token_type in {'MUL', 'FDIV', 'IDIV', 'MOD'}:
+        while token_type in {"MUL", "FDIV", "IDIV", "MOD"}:
         
             op = token_type
             self.expect(token_type)
@@ -586,11 +586,11 @@ class ParserAST:
 
         token = self.current_token()
         token_type, token_value = token.kind, token.value
-        while token_type == 'POW':
-            self.expect('POW')
+        while token_type == "POW":
+            self.expect("POW")
             
             right = self.parse_power()
-            node = BinaryOperation(left=node, operator='POW', right=right)
+            node = BinaryOperation(left=node, operator="POW", right=right)
         
             token = self.current_token()
             token_type, token_value = token.kind, token.value
@@ -601,15 +601,15 @@ class ParserAST:
     def parse_unary(self):
         token = self.current_token()
         token_type, token_value = token.kind, token.value
-        while token_type in {'NOT','MINUS'}:
-            if token_type == 'NOT':
-                self.expect('NOT')
+        while token_type in {"NOT","MINUS"}:
+            if token_type == "NOT":
+                self.expect("NOT")
                 operand = self.parse_unary()
-                return UnaryOperator(operator='NOT', operand=operand) 
-            elif token_type == 'MINUS':
-                self.expect('MINUS')
+                return UnaryOperator(operator="NOT", operand=operand) 
+            elif token_type == "MINUS":
+                self.expect("MINUS")
                 operand = self.parse_unary()
-                return UnaryOperator(operator='MINUS', operand=operand) 
+                return UnaryOperator(operator="MINUS", operand=operand) 
 
         return self.parse_factor()
 
@@ -644,7 +644,7 @@ class ParserAST:
                     expr = self.parse_expression()
                     dim.append(expr)
 
-                    if self.soft_match('COMMA'):
+                    if self.soft_match("COMMA"):
                         self.next_token()
                         continue
 
@@ -690,7 +690,7 @@ class ParserAST:
         ~ : These methods are already implemented
         """        
         tree = self.parse_switch_condition()
-        log(tree, tags=['expr'])
+        log(tree, tags=["expr"])
         return tree
     
 
@@ -729,7 +729,7 @@ class ParserAST:
         """
         Adds the first Node of the program, which should be the name.
         """        
-        self.match('PROGRAM_NAME')
+        self.match("PROGRAM_NAME")
         self.program_name = self.current_token().value
 
         branch.body.append(ProgramName(self.program_name)) # purely symbolical
@@ -821,7 +821,7 @@ class ParserAST:
 
         variables = []
         # Ensure the next token is a colon
-        if not self.current_token() or self.current_token().kind != 'COLON':
+        if not self.current_token() or self.current_token().kind != "COLON":
             raise SyntaxError("Expected ':' after variable type")
         self.next_token()  # Skip the colon
 
@@ -832,14 +832,24 @@ class ParserAST:
         return variables
     
 
-    def _expression_list(self, var_type: _Optional[str] = None, at_least_one_var: bool = False, array_allowed: bool = True,) -> _List[_Union[Variable, Array]]:
+    def _expression_list(self, var_type: _Optional[str] = None, at_least_one_var: bool = False, array_allowed: bool = True, inside_paren: bool = False) -> _List[_Union[Variable, Array]]:
         """
 
         """
         expr_list = []
+        empty: bool = False
+
+        if self.reached_eol() or (self.soft_match("RPAREN") and inside_paren):
+            empty = True
+        
+        if empty and at_least_one_var:
+            raise SyntaxError("Expected at least one variable name")
+
+        if empty:
+            return expr_list
+
         while True:
-            
-            self.match('IDENTIFIER')
+            self.match("IDENTIFIER")
             token = self.current_token()
             var_name = token.value
             array = False
@@ -854,7 +864,7 @@ class ParserAST:
                     expr = self.parse_expression()
                     dim.append(expr)
 
-                    if self.soft_match('COMMA'):
+                    if self.soft_match("COMMA"):
                         self.next_token()
                         continue
 
@@ -870,23 +880,23 @@ class ParserAST:
             
             self.next_token()
 
-            if self.soft_match('COMMA'):
+            if self.soft_match("COMMA"):
                 self.next_token()
                 continue
 
             if self.reached_eol():
                 break
-            
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
-        if not expr_list and at_least_one_var:
-            raise SyntaxError("Expected at least one variable name")
+            if self.soft_match("RPAREN") and inside_paren:
+                break
+
+            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
         return expr_list
 
 
     def parse_read(self, branch: _Union[Block, Program]):
-        self.expect('READ')  # Skip 'ΔΙΑΒΑΣΕ'
+        self.expect("READ")  # Skip "ΔΙΑΒΑΣΕ"
 
         
         var_list = []
@@ -901,7 +911,7 @@ class ParserAST:
 
 
     def parse_write(self, branch: _Union[Block, Program]):
-        self.next_token()  # Skip 'ΓΡΑΨΕ'
+        self.next_token()  # Skip "ΓΡΑΨΕ"
         expr_list: _List[Expression] = []
         
         while self.current_token():
@@ -910,7 +920,7 @@ class ParserAST:
             expr_list.append(part_tokens)
 
             # If the current token is a comma, skip it and continue
-            if self.soft_match('COMMA'):
+            if self.soft_match("COMMA"):
                 self.next_token()
                 continue
 
@@ -926,14 +936,14 @@ class ParserAST:
 
     def parse_assignment(self, branch: _Union[Block, Program]):
         # VALID_ASSIGNMENT_TOKENS = VALID_PROCESS_EXPRESSION_TOKENS
-        # END_TOKENS = {'NEWLINE'}
+        # END_TOKENS = {"NEWLINE"}
 
         # Get the variable being assigned to
-        token = self.current_token()  # The variable is the token before '<--'
+        token = self.current_token()  # The variable is the token before "<--"
         var_name = token.value
         self.next_token()  # Skip variable
 
-        self.expect('ASSIGN')
+        self.expect("ASSIGN")
 
         expression = self.parse_expression()
 
@@ -952,32 +962,32 @@ class ParserAST:
         branches_node = []
 
         start_line = self.current_token().line
-        self.next_token()  # Skip 'ΑΝ' or 'ΑΛΛΙΩΣ_ΑΝ'
+        self.next_token()  # Skip "ΑΝ" or "ΑΛΛΙΩΣ_ΑΝ"
         condition_tokens = self.parse_expression()
 
-        self.expect('THEN')
+        self.expect("THEN")
         self.expect_eol()
         self.next_line()
 
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(then_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], self.parse_block_dict)
+        self.parse_block(then_branch, ["ELSE", "ELSE_IF","END_IF","END_PROGRAM"], self.parse_block_dict)
 
         branches_node.append(Branch(condition_tokens, then_branch))
 
         # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
-        while self.soft_match('ELSE_IF'):
-            log(f"From parse_if (parser_ast.py): Current token in the loop is {self.current_token()}", tags=['pi'])
+        while self.soft_match("ELSE_IF"):
+            log(f"From parse_if (parser_ast.py): Current token in the loop is {self.current_token()}", tags=["pi"])
             # self.next_token() # parse if already skips the IF token (as well the ELSE_IF token)
             self.next_token()
             elif_condition_tokens = self.parse_expression()
 
-            self.expect('THEN')
+            self.expect("THEN")
             self.expect_eol()
             self.next_line()
             temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ['ELSE', 'ELSE_IF','END_IF','END_PROGRAM'], self.parse_block_dict)  # Recursively parse the else-if block
+            self.parse_block(temp_elif_branch, ["ELSE", "ELSE_IF","END_IF","END_PROGRAM"], self.parse_block_dict)  # Recursively parse the else-if block
             branches_node.append(Branch(elif_condition_tokens, temp_elif_branch))
 
         if not branches_node:
@@ -987,20 +997,20 @@ class ParserAST:
 
         # Handle ΑΛΛΙΩΣ (else)
         else_branch = Block([])
-        if self.soft_match('ELSE'):
-            self.expect_token_alone('ELSE')
+        if self.soft_match("ELSE"):
+            self.expect_token_alone("ELSE")
             self.next_line()
-            self.parse_block(else_branch, ['END_IF','END_PROGRAM'], self.parse_block_dict)
+            self.parse_block(else_branch, ["END_IF","END_PROGRAM"], self.parse_block_dict)
         
-        # self.expect_token_alone('END_IF')
+        # self.expect_token_alone("END_IF")
 
-        log(f"From parse_if (parser_ast.py): Expecting token {'END_IF'}", tags=['eta'])
+        log(f"From parse_if (parser_ast.py): Expecting token {"END_IF"}", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match('END_IF'):
+        if not self.soft_match("END_IF"):
             raise SyntaxError(
                 f"Expected END_IF for the IF scope from line {start_line} but found {self.current_token().kind} instead."
             )
-        log(f"From parse_if (parser_ast.py): Found {'END_IF'}", tags=['eta'])
+        log(f"From parse_if (parser_ast.py): Found {"END_IF"}", tags=["eta"])
 
         branch.body.append(
             If(
@@ -1035,7 +1045,7 @@ class ParserAST:
                 expr = self.parse_case_expression()
                 case_expr.append(expr)
 
-                if self.soft_match('COMMA'):
+                if self.soft_match("COMMA"):
                     self.next_token()
                     continue
 
@@ -1055,13 +1065,13 @@ class ParserAST:
             self.next_line()
             self.parse_block(else_block, ["CASE", "END_SWITCH", "END_PROGRAM"], self.parse_block_dict)
 
-        log(f"From parse_if (parser_ast.py): Expecting token END_SWITCH", tags=['eta'])
+        log(f"From parse_if (parser_ast.py): Expecting token END_SWITCH", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match('END_SWITCH'):
+        if not self.soft_match("END_SWITCH"):
             raise SyntaxError(
                 f"Expected END_SWITCH for the SWITCH scope from line {start_line} but found {self.current_token().kind} instead."
             )
-        log(f"From parse_if (parser_ast.py): Found END_SWITCH", tags=['eta'])
+        log(f"From parse_if (parser_ast.py): Found END_SWITCH", tags=["eta"])
         
         branch.body.append(Switch(switch_expr, branches_list, else_block))
         
@@ -1071,22 +1081,22 @@ class ParserAST:
         self.next_token()
         condition = self.parse_expression()
 
-        self.expect('REPEAT')
+        self.expect("REPEAT")
         self.expect_eol()
         self.next_line()
 
         while_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(while_branch, ['END_LOOP','END_PROGRAM'], self.parse_block_dict)
+        self.parse_block(while_branch, ["END_LOOP","END_PROGRAM"], self.parse_block_dict)
 
-        log(f"From parse_while (parser_ast.py): Expecting token {'END_LOOP'}", tags=['eta'])
+        log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match('END_LOOP'):
+        if not self.soft_match("END_LOOP"):
             raise SyntaxError(
                 f"Expected END_LOOP for the WHILE scope from line {start_line} but found {self.current_token().kind} instead."
             )
-        log(f"From parse_while (parser_ast.py): Found {'END_LOOP'}", tags=['eta'])
+        log(f"From parse_while (parser_ast.py): Found {"END_LOOP"}", tags=["eta"])
 
         branch.body.append(
             While(
@@ -1121,15 +1131,15 @@ class ParserAST:
         
         self.next_line()
         for_branch = Block([])
-        self.parse_block(for_branch, ['END_LOOP','END_PROGRAM'], self.parse_block_dict)
+        self.parse_block(for_branch, ["END_LOOP","END_PROGRAM"], self.parse_block_dict)
 
-        log("From parse_for (parser_ast.py): Expecting token 'END_LOOP'", tags=['eta'])
+        log("From parse_for (parser_ast.py): Expecting token 'END_LOOP'", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match('END_LOOP'):
+        if not self.soft_match("END_LOOP"):
             raise SyntaxError(
                 f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
             )
-        log("From parse_for (parser_ast.py): Found 'END_LOOP'", tags=['eta'])
+        log("From parse_for (parser_ast.py): Found 'END_LOOP'", tags=["eta"])
 
         branch.body.append(
             For(
@@ -1149,15 +1159,15 @@ class ParserAST:
         self.next_line()
 
         do_branch = Block([])
-        self.parse_block(do_branch, ['UNTIL', 'END_PROGRAM'], self.parse_block_dict)
+        self.parse_block(do_branch, ["UNTIL", "END_PROGRAM"], self.parse_block_dict)
 
 
-        log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=['eta'])
-        if not self.soft_match('UNTIL'):
+        log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=["eta"])
+        if not self.soft_match("UNTIL"):
             raise SyntaxError(
                 f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
             )
-        log("From parse_do (parser_ast.py): Found 'UNTIL'", tags=['eta'])
+        log("From parse_do (parser_ast.py): Found 'UNTIL'", tags=["eta"])
 
         self.next_token()
         expr = self.parse_expression()
@@ -1180,8 +1190,8 @@ class ParserAST:
         self.expect("LPAREN")
         args = []
 
-        if not self.soft_match("RPAREN", 1):
-            args = self._expression_list()
+        if not self.soft_match("RPAREN"):
+            args = self._expression_list(inside_paren=True)
 
 
         self.expect("RPAREN")

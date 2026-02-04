@@ -15,6 +15,14 @@ class TreeAnalyzer:
     def analyze_types_tree(self, ast) -> None:
         """
         Analyzes everything in the program tree. If there are any errors it pushes them to the error stack.
-        
+
+        Checks:
+
+        Variable types = Checks Expressions and the type they should give
+        checks conditions and if they are boolean
+        checks the right functions/procedures have the right amount of arguments.
+
         :param ast: Should be the tree produced by the ParserAST
         """
+
+        self.ast = ast

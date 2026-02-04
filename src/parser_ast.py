@@ -375,7 +375,7 @@ class ParserAST:
         while self.current_line < len(self.program_tokens):
             token_type = self.current_token().kind
             if token_type in dict_of_acceptable_tokens:
-                log(f"From parse_code_block (parser_ast.py): Found READ in main program.", tags=["v"])
+                log(f"From parse_code_block (parser_ast.py): Found {token_type} in main program. In line {self.get_current_line()}", tags=["v"])
                 dict_of_acceptable_tokens[token_type](self.program)
                 self.next_line()
 
@@ -825,51 +825,7 @@ class ParserAST:
             raise SyntaxError("Expected ':' after variable type")
         self.next_token()  # Skip the colon
 
-        variables = self._expression_list(var_type=var_type,at_least_one_var=True)
-        # # read variable names
-        # while True:
-        #     array = False
-            
-        #     self.match('IDENTIFIER')
-            
-        #     var_name = self.current_token().value
-
-        #     dim: _List[Expression] = []
-        #     if self.soft_match("LBRACKET", 1):
-        #         array = True
-        #         self.next_token()
-        #         self.expect("LBRACKET")
-                
-        #         while True:
-        #             expr = self.parse_expression()
-        #             dim.append(expr)
-
-        #             if self.soft_match('COMMA'):
-        #                 self.next_token()
-        #                 continue
-
-        #             if self.soft_match("RBRACKET"):
-        #                 break
-
-        #             raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
-
-        #     var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
-
-        #     variables.append(var)
-            
-        #     self.next_token()
-
-        #     if self.soft_match('COMMA'):
-        #         self.next_token()
-        #         continue
-
-        #     if self.reached_eol():
-        #         break
-            
-        #     raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
-
-        # if not variables:
-        #     raise SyntaxError("Expected at least one variable name")
+        variables = self._expression_list(var_type=var_type, at_least_one_var=True)
 
         log("From read_variable_list (parser_ast.py): Found these variables:", variables, tags=["vd"])
         
@@ -928,52 +884,16 @@ class ParserAST:
 
         return expr_list
 
+
     def parse_read(self, branch: _Union[Block, Program]):
         self.expect('READ')  # Skip 'ΔΙΑΒΑΣΕ'
 
-        read = Read([])
         
-        while True:
-            self.match('IDENTIFIER')
-            token = self.current_token()
-            var_name = token.value
+        var_list = []
 
-            array = False
+        var_list = self._expression_list(at_least_one_var=True)
 
-            dim: _List[Expression] = []
-            if self.soft_match("LBRACKET", 1):
-                array = True
-                self.next_token()
-                self.expect("LBRACKET")
-                
-                while True:
-                    expr = self.parse_expression()
-                    dim.append(expr)
-
-                    if self.soft_match('COMMA'):
-                        self.next_token()
-                        continue
-
-                    if self.soft_match("RBRACKET"):
-                        break
-
-                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
-
-
-            var = Array(var_name, dim, None) if array else Variable(var_name, None)
-
-            read.variable_list.append(var)
-            
-            self.next_token()
-
-            if self.soft_match('COMMA'):
-                self.next_token()
-                continue
-
-            if self.reached_eol():
-                break
-            
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+        read = Read(var_list)
 
         self.expect_eol()
         log(f"From parse_read (parser_ast.py): Finished parsing the Read (ΔΙΑΒΑΣΕ) in line {self.current_token().line - 1}", tags=["r"])
@@ -1256,51 +1176,13 @@ class ParserAST:
         self.expect("CALL")
         self.match("IDENTIFIER")
         procedure_name = self.current_token().value
+        self.next_token()
         self.expect("LPAREN")
-
         args = []
-        while True:
-            
-            self.match('IDENTIFIER')
-            token = self.current_token()
-            var_name = token.value
 
-            array = False
+        if not self.soft_match("RPAREN", 1):
+            args = self._expression_list()
 
-            dim: _List[Expression] = []
-            if self.soft_match("LBRACKET", 1):
-                array = True
-                self.next_token()
-                self.expect("LBRACKET")
-                
-                while True:
-                    expr = self.parse_expression()
-                    dim.append(expr)
-
-                    if self.soft_match('COMMA'):
-                        self.next_token()
-                        continue
-
-                    if self.soft_match("RBRACKET"):
-                        break
-
-                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
-
-
-            var = Array(var_name, dim, None) if array else Variable(var_name, None)
-
-            args.append(var)
-            
-            self.next_token()
-
-            if self.soft_match("COMMA"):
-                self.next_token()
-                continue
-
-            if self.soft_match("RPAREN"):
-                break
-            
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
         self.expect("RPAREN")
         self.expect_eol()

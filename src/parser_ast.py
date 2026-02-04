@@ -250,8 +250,6 @@ class ParserAST:
         self.program_tokens: _List[_List[_Tuple[str, str]]] = tokens
         self.tokens = token
 
-        self.variable_table: dict[str, type] = {}
-        self.constants_table: dict[str, type] = {}
         self.program = Program([])
         self.program_name = "a"
         self.code: _List[str] = []
@@ -270,6 +268,7 @@ class ParserAST:
             "WHILE" : self.parse_while,
             "FOR" : self.parse_for,
             "START_LOOP" : self.parse_do,
+            "CALL" : self.parse_call_procedure
         }
 
         self.parse_program_block_dict = self.parse_block_dict.copy()
@@ -637,9 +636,6 @@ class ParserAST:
         elif token_type == "IDENTIFIER":
             self.expect("IDENTIFIER")
  
-            if not self.variable_table.get(token_value, False):
-                raise SyntaxError(f"Variable {token_value} does not exist, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}")
-  
             if self.soft_match("LBRACKET"):
                 dim: _List[Expression] = []
                 self.expect("LBRACKET")
@@ -658,9 +654,9 @@ class ParserAST:
                     raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
                 
                 self.next_token() # TODO I feel like this will bite me in the ass
-                return Array(token_value, dim, self.variable_table[token_value])
+                return Array(token_value, dim, None)
             else:
-                return Variable(token_value, self.variable_table[token_value])
+                return Variable(token_value, None)
             
         elif token_type == "STRING":
             self.expect("STRING")
@@ -677,6 +673,8 @@ class ParserAST:
                 f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}"
                 )
 
+
+    def parse_call_function(): ...
 
     # __________________________________________________________________________________________________
 
@@ -796,7 +794,7 @@ class ParserAST:
             log("From parse_declaration (parser_ast.py): Creating Node with list of variables:", variables, f"Type: {TYPE_MAP[token_type]}", tags=["vd"])
             
             for var in variables:
-                self.variable_table[var.name] = py_type
+
                 branch.body.append(VariableDeclaration(var.name, py_type) if type(var) == Variable else ArrayDeclaration(var.name, var.dim, py_type))
                 log("From parse_declaration (parser_ast.py): Created node", 
                     "VariableDeclaration" if type(var) == Variable else "ArrayDeclaration",
@@ -827,74 +825,60 @@ class ParserAST:
             raise SyntaxError("Expected ':' after variable type")
         self.next_token()  # Skip the colon
 
-        # read variable names
-        while True:
-            array = False
+        variables = self._expression_list(var_type=var_type,at_least_one_var=True)
+        # # read variable names
+        # while True:
+        #     array = False
             
-            self.match('IDENTIFIER')
+        #     self.match('IDENTIFIER')
             
-            var_name = self.current_token().value
+        #     var_name = self.current_token().value
 
-            dim: _List[Expression] = []
-            # For GLWSSA++
-            # while self.soft_match("LBRACKET", 1): # peaking into the next token to see if it is an array.
-            #     array = True
-            #     self.next_token()
-            #     self.expect("RBRACKET")
-            #     expr = self.parse_expression()
-            #     dim.append(expr)
-            #     self.match("RBRACKET")
-            if self.soft_match("LBRACKET", 1):
-                array = True
-                self.next_token()
-                self.expect("LBRACKET")
+        #     dim: _List[Expression] = []
+        #     if self.soft_match("LBRACKET", 1):
+        #         array = True
+        #         self.next_token()
+        #         self.expect("LBRACKET")
                 
-                while True:
-                    expr = self.parse_expression()
-                    dim.append(expr)
+        #         while True:
+        #             expr = self.parse_expression()
+        #             dim.append(expr)
 
-                    if self.soft_match('COMMA'):
-                        self.next_token()
-                        continue
+        #             if self.soft_match('COMMA'):
+        #                 self.next_token()
+        #                 continue
 
-                    if self.soft_match("RBRACKET"):
-                        break
+        #             if self.soft_match("RBRACKET"):
+        #                 break
 
-                    raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
+        #             raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
 
+        #     var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
 
-            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
-
-            variables.append(var)
+        #     variables.append(var)
             
-            self.next_token()
+        #     self.next_token()
 
-            if self.soft_match('COMMA'):
-                self.next_token()
-                continue
+        #     if self.soft_match('COMMA'):
+        #         self.next_token()
+        #         continue
 
-            if self.reached_eol():
-                break
+        #     if self.reached_eol():
+        #         break
             
-            raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
+        #     raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
-        if not variables:
-            raise SyntaxError("Expected at least one variable name")
+        # if not variables:
+        #     raise SyntaxError("Expected at least one variable name")
 
         log("From read_variable_list (parser_ast.py): Found these variables:", variables, tags=["vd"])
         
         return variables
     
 
-    def _expression_list(self, array_allowed: bool = True) -> _List[_Union[Variable, Array]]:
+    def _expression_list(self, var_type: _Optional[str] = None, at_least_one_var: bool = False, array_allowed: bool = True,) -> _List[_Union[Variable, Array]]:
         """
-        Docstring for _expression_list
-        
-        :param self: Description
-        :param array_allowed: Description
-        :type array_allowed: bool
-        :return: Description
-        :rtype: List[Variable | Array]
+
         """
         expr_list = []
         while True:
@@ -902,12 +886,6 @@ class ParserAST:
             self.match('IDENTIFIER')
             token = self.current_token()
             var_name = token.value
-            var_type = None
-            try:
-                var_type = self.variable_table[var_name]
-            except KeyError as e:
-                raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
-
             array = False
 
             dim: _List[Expression] = []
@@ -932,7 +910,7 @@ class ParserAST:
 
             var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
 
-            expr_list.variable_list.append(var)
+            expr_list.append(var)
             
             self.next_token()
 
@@ -945,7 +923,10 @@ class ParserAST:
             
             raise SyntaxError(f"Expected COMMA or NEWLINE, but found {self.current_token().kind} in line {self.get_current_line()}")
 
+        if not expr_list and at_least_one_var:
+            raise SyntaxError("Expected at least one variable name")
 
+        return expr_list
 
     def parse_read(self, branch: _Union[Block, Program]):
         self.expect('READ')  # Skip 'ΔΙΑΒΑΣΕ'
@@ -953,15 +934,9 @@ class ParserAST:
         read = Read([])
         
         while True:
-            
             self.match('IDENTIFIER')
             token = self.current_token()
             var_name = token.value
-            var_type = None
-            try:
-                var_type = self.variable_table[var_name]
-            except KeyError as e:
-                raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
 
             array = False
 
@@ -985,7 +960,7 @@ class ParserAST:
                     raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
 
 
-            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
+            var = Array(var_name, dim, None) if array else Variable(var_name, None)
 
             read.variable_list.append(var)
             
@@ -1037,8 +1012,6 @@ class ParserAST:
         token = self.current_token()  # The variable is the token before '<--'
         var_name = token.value
         self.next_token()  # Skip variable
-        if not self.variable_table.get(var_name, []):
-            raise SyntaxError(f"Variable {var_name} does not exist.")
 
         self.expect('ASSIGN')
 
@@ -1210,9 +1183,7 @@ class ParserAST:
         
         self.match("IDENTIFIER")
         identifier = self.current_token()
-        if not self.variable_table.get(identifier.value, False):
-            raise SyntaxError(f"Variable {identifier.value} for the FOR loop in line {identifier.line} is not initialized")
-        variable = Variable(identifier.value, self.variable_table[identifier.value])
+        variable = Variable(identifier.value, None)
 
         self.next_token()
         self.expect("FROM")
@@ -1281,22 +1252,18 @@ class ParserAST:
         )
 
 
-    def parse_block_procedure(self, branch: _Union[Block, Program]):
+    def parse_call_procedure(self, branch: _Union[Block, Program]):
         self.expect("CALL")
         self.match("IDENTIFIER")
         procedure_name = self.current_token().value
         self.expect("LPAREN")
+
         args = []
         while True:
             
             self.match('IDENTIFIER')
             token = self.current_token()
             var_name = token.value
-            var_type = None
-            try:
-                var_type = self.variable_table[var_name]
-            except KeyError as e:
-                raise SyntaxError(f"Variable {var_name} has not been declared in Variables section. ({e})")
 
             array = False
 
@@ -1320,7 +1287,7 @@ class ParserAST:
                     raise SyntaxError(f"Expected COMMA or RBRACKET, but found {self.current_token().kind} in line {self.get_current_line()}")
 
 
-            var = Array(var_name, dim, var_type) if array else Variable(var_name, var_type)
+            var = Array(var_name, dim, None) if array else Variable(var_name, None)
 
             args.append(var)
             
@@ -1342,6 +1309,7 @@ class ParserAST:
 
 
     # __________________________________________________________________________________________________
+
 
     def parse_function(self, branch: _Union[Block, Program]):
         ...

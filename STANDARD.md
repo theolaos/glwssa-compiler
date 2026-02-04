@@ -112,3 +112,36 @@
 8. ΟΧΙ
 9. ΚΑΙ
 10. Η | 'Η
+
+# Χρήση του Διαμεταγλωττιστη
+
+## Διαμεταγλώττιση αρχείου ΓΛΩΣΣΑ
+
+### Απλή διαμεταγλώττιση - το όνομα του αρχείου θα είναι το όνομα που έχεις δώσει στο πρόγραμμα
+
+```sh
+
+$ glwssa-transpiler file-path.glwssa
+
+```
+
+### Optimized διαμεταγλώττιση
+
+```sh
+
+$ glwssa-transpiler -o file-path.glwssa
+
+```
+
+### Απλή διαμεταγλώττιση αλλά optimezed compilation
+```sh
+
+$ glwssa-transpiler -c="-o" file-path.glwssa
+
+```
+### δίνοντας όνομα στο τελικό αρχείο
+```sh
+
+$ glwssa-transpiler -n="new_name" file-path.glwssa
+
+```

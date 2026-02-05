@@ -116,9 +116,17 @@ class ParserAST:
         self.current_token_index += 1
 
 
-    def next_line(self):
+    def next_line(self, check: bool = True):
         self.current_line += 1
         self.current_token_index = 0
+
+        """
+        In case we reached the end of the file.
+        """
+        if self.current_line > len(self.program_tokens)-1 and check:
+            self.current_line -= 1
+            line = self.get_current_line()
+            raise SyntaxError(f"Reached the end of the file, Line : {line}")
 
 
     def parse(self):
@@ -145,10 +153,6 @@ class ParserAST:
                 log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=["debug", "ct"])
                 function: Function = self.parse_function()
                 self.functions.append(function)
-            elif token_type == "EMPTY_LINE":
-                log(f"From create tree(parser_ast.py): Found an empty line {self.current_line}, skipping it", tags=["debug", "ct"])
-                self.next_line()
-                continue
             
             if self.current_line >= len(self.program_tokens):
                 log("From create tree(parser_ast.py): Finished creating tree", tags=["ct"])
@@ -279,11 +283,14 @@ class ParserAST:
             raise SyntaxError(f"Expected NEWLINE in the end of line: {self.get_current_line()}. Encountered {self.current_token()} instead")
 
 
-    def reached_eof(self) -> bool:
+    def check_eof(self, scope: str) -> None:
         """
         In case we reached the end of the file.
         """
-        return self.current_line > len(self.program_tokens)-1
+        if self.current_line > len(self.program_tokens)-1:
+            self.current_line -= 1
+            line = self.get_current_line()
+            raise SyntaxError(f"Reached the end of the file, while in the scope {scope}. Line : {line}")
 
     # __________________________________________________________________________________________________
 
@@ -1093,7 +1100,6 @@ class ParserAST:
 
         self.parse_block(body, END_TOKENS_FOR_BLOCK, function_block_dict)
         log(f"From parse_function (parser_ast.py): Done with the parsing of the main block of the function", tags=["pf"])
-
 
         func = Function(
             name=name,

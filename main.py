@@ -36,6 +36,7 @@ def main():
     # r - from parse read
     # ct - create tree
     # nodes - prints all the nodes of the AST tree
+    # pcp - parse call procedure
     flush_log_file()
     set_global_tags(tags=["all"], exclude_tags=["mtok"])
 

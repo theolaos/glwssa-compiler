@@ -56,8 +56,13 @@ class Tokenizer:
             ('VARIABLES', fr'{gsk('ΜΕΤΑΒΛΗΤΕΣ')}'),   # Variables section
             ('INTEGERS', fr'{gsk('ΑΚΕΡΑΙΕΣ')}'),      # Integer type
             ('CHARACTERS', fr'{gsk('ΧΑΡΑΚΤΗΡΕΣ')}'),  # Character type
-            ('REAL', fr'{gsk('ΠΡΑΓΜΑΤΙΚΕΣ')}'),       # Real type
-            ('LOGICAL', fr'{gsk('ΛΟΓΙΚΕΣ')}'),        # Logical type
+            ('REALS', fr'{gsk('ΠΡΑΓΜΑΤΙΚΕΣ')}'),       # Real type
+            ('LOGICALS', fr'{gsk('ΛΟΓΙΚΕΣ')}'),        # Logical type
+
+            ('INTEGER', fr'{gsk('ΑΚΕΡΑΙΑ')}'),      # Integer type
+            ('CHARACTER', fr'{gsk('ΧΑΡΑΚΤΗΡΑΣ')}'),  # Character type
+            ('REAL', fr'{gsk('ΠΡΑΓΜΑΤΙΚΗ')}'),       # Real type
+            ('LOGICAL', fr'{gsk('ΛΟΓΙΚΗ')}'),        # Logical type
 
             ('IF', fr'{gsk('ΑΝ')}'),                  # If statement
             ('THEN', fr'{gsk('ΤΟΤΕ')}'),              # Then keyword
@@ -104,6 +109,8 @@ class Tokenizer:
             ('END_PROCEDURE', fr'{gsk('ΤΕΛΟΣ_ΔΙΑΔΙΚΑΣΙΑΣ')}'),
 
             ('FUNCTION', fr'{gsk('ΣΥΝΑΡΤΗΣΗ')}'),
+            ('END_FUNCTION', fr'{gsk('ΤΕΛΟΣ_ΣΥΝΑΡΤΗΣΗΣ')}'),
+
             ('BUILTIN_FUNCTION', fr'{gsk('Α_Μ')}|{gsk('Τ_Ρ')}|{gsk('Α_Τ')}'), # It might be better to use multiple different tokens for each built in function
 
             ('STRING', r'"[^"]*"|\'[^\']*\''),
@@ -206,47 +213,5 @@ class Tokenizer:
         for line in token_lines:
             log(line, tags=['atok'])
         self.tokens = token_lines
-        self._validate_order_and_uniqueness()
 
         return token_lines
-
-    def _validate_order_and_uniqueness(self):
-        must_be_before_start = [
-            'PROGRAM', 'VARIABLES', 'INTEGERS',
-            'CHARACTERS', 'REAL', 'LOGICAL'
-        ]
-
-        # kind -> list of (line_idx, token_idx)
-        positions = {}
-
-        for line_idx, line in enumerate(self.tokens):
-            for token_idx, token in enumerate(line):
-                positions.setdefault(token.kind, []).append((line_idx, token_idx))
-
-        # PROGRAM must appear exactly once
-        program_positions = positions.get('PROGRAM', [])
-        if len(program_positions) != 1:
-            raise SyntaxError("Token 'ΠΡΟΓΡΑΜΜΑ' (PROGRAM) must appear exactly once")
-
-        # START must appear exactly once
-        start_positions = positions.get('START', [])
-        if len(start_positions) != 1:
-            raise SyntaxError("Token 'ΑΡΧΗ' (START) must appear exactly once")
-
-        start_line, start_col = start_positions[0]
-
-        # Tokens that must be before START
-        for tk in must_be_before_start:
-            if tk in positions:
-                if len(positions[tk]) != 1:
-                    raise SyntaxError(f"Token '{tk}' must appear at most once")
-
-                tk_line, tk_col = positions[tk][0]
-
-                # Compare position to START
-                if (tk_line > start_line) or (
-                    tk_line == start_line and tk_col > start_col
-                ):
-                    raise SyntaxError(
-                        f"Token '{tk}' must appear before 'ΑΡΧΗ' (START)"
-                    )

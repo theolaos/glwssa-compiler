@@ -11,6 +11,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+class ReachedEOFError(Exception):
+    """Exception raised when reached End Of File.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+
 VALID_VARIABLE_TYPES = {"INTEGERS", "CHARACTERS", "REAL", "LOGICAL"}
 VALID_PROCESS_EXPRESSION_TOKENS = {
     "IDENTIFIER",
@@ -126,7 +138,7 @@ class ParserAST:
         if self.current_line > len(self.program_tokens)-1 and check:
             self.current_line -= 1
             line = self.get_current_line()
-            raise SyntaxError(f"Reached the end of the file, Line : {line}")
+            raise ReachedEOFError(f"Reached the end of the file, Line : {line}")
 
 
     def parse(self):
@@ -142,9 +154,12 @@ class ParserAST:
 
             if token_type == "PROGRAM":
                 log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=["debug", "ct"])
-                self.parse_program_name(self.program)
-                self.parse_variables_block(self.program)
-                self.parse_program_block(self.parse_program_block_dict)                
+                try:
+                    self.parse_program_name(self.program)
+                    self.parse_variables_block(self.program)
+                    self.parse_program_block(self.parse_program_block_dict)                
+                except ReachedEOFError as e:
+                    raise ReachedEOFError(f"Reached at the end of file ")
             elif token_type == "PROCEDURE":
                 log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=["debug", "ct"])
                 procedure: Procedure = self.parse_procedure()
@@ -166,13 +181,14 @@ class ParserAST:
             self.next_line()
             self.parse_constant_declaration(branch)
             self.next_line()
+            log(f"From parse_variables_block (parser_ast.py): Finished parsing the constants", tags=["pvb"])
         
 
-        self.expect_token_alone("VARIABLES")
-        self.next_line()
-
-        self.parse_declaration(branch)
-        log(f"From parse_variables_block (parser_ast.py): Finished parsing the variables", tags=["pvb"])
+        if self.soft_match("VARIABLES"):
+            self.expect_token_alone("VARIABLES")
+            self.next_line()
+            self.parse_declaration(branch)
+            log(f"From parse_variables_block (parser_ast.py): Finished parsing the variables", tags=["pvb"])
         
         self.expect_token_alone("START")
         self.next_line()
@@ -1090,7 +1106,11 @@ class ParserAST:
 
         # self.next_line() # self.next_line() does a self.next_line() first thing.
         body = Block([])
-        self.parse_variables_block(body)
+        try:
+            self.parse_variables_block(body)
+        except ReachedEOFError as e:
+            raise ReachedEOFError(f"Reached the end of the code file at line {self.get_current_line()}, but didn't finish the scope of Function. Type END_FUNCTION.")
+        
         log(f"From parse_function (parser_ast.py): Done with the parsing of the variables block", tags=["pf"])
 
         function_block_dict = self.parse_block_dict.copy()

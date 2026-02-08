@@ -14,6 +14,9 @@
 import subprocess
 import os
 
+import traceback
+
+from src.error import ErrorStack
 from src.tokenizer import Tokenizer
 from src.parser_ast import ParserAST
 from src.analyzer import TreeAnalyzer
@@ -22,6 +25,7 @@ from src.log import set_global_tags, log, flush_log_file
 
 
 def main():
+    # e - error
     # v - verbose
     # b - if/for block
     # eta - expect_token_alone is a method in ParserAST
@@ -38,6 +42,7 @@ def main():
     # nodes - prints all the nodes of the AST tree
     # pcp - parse call procedure
     flush_log_file()
+    # set_global_tags(tags=["e"])
     set_global_tags(tags=["all"], exclude_tags=["mtok"])
 
     log("From main func (main.py): main function started.", tags=["v"])
@@ -49,6 +54,10 @@ def main():
         code = program.read()
 
     log("From main func (main.py): Code has been succesfully read", tags=["v"])
+
+    error_stack = ErrorStack()
+    log("From main func (main.py): Initialized successfully the errorstack", tags=["v"])
+
 
     tokenizer = Tokenizer(code)
     # tokens = tokenizer.tokenize()
@@ -75,8 +84,19 @@ def main():
     cpp_code = backend.translate_tree(program_ast)
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
 
+
+    if not error_stack.errors:
+        error_stack.print_errors()
+        return
+    
+    error_stack.print_warnings()
+
+    error_stack.print_notes()
+
+
     with open("output.cpp", "w") as output_file:
         output_file.write(cpp_code)
+
 
     log("From main func (main.py): The cpp code output has been transferred into the output.cpp file", tags=["v"])
 
@@ -106,4 +126,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        error_traceback = traceback.format_exc()
+        log(error_traceback, ["e"], "both")
+        print("ΣΦΑΛΜΑ <I999> : Εσωτερικό σφάλμα του Διαμεταγλωττιστή.")
+        print("Τρέξε τον κώδικα σου με tags='all' exclude_tags='mtok' και έπειτα στείλε το '.log' αρχείο μαζί με τον", end="")
+        print(" κώδικα σου σε ένα νέο Issue στο github page του glwssa-compiler - https://github.com/theolaos/glwssa-compiler")

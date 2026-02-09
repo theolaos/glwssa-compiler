@@ -26,6 +26,7 @@ from src.log import set_global_tags, log, flush_log_file
 
 def main():
     # e - error
+    # de - debug error management
     # v - verbose
     # b - if/for block
     # eta - expect_token_alone is a method in ParserAST
@@ -33,6 +34,7 @@ def main():
     # debug - debugging duh
     # vd - variable declaration
     # tok - tokens
+    # lines - prints the lines of the program and their line number
     # atok - logs all the tokens of the loaded program
     # mtok - logs the method tokenize
     # pvb - parse variable block
@@ -44,27 +46,31 @@ def main():
     flush_log_file()
     # set_global_tags(tags=["e"])
     set_global_tags(tags=["all"], exclude_tags=["mtok"])
+    
 
     log("From main func (main.py): main function started.", tags=["v"])
 
     code: str = ""
+    error_code: list[str] = []
+
     compile_command: list[str] = []
-    
+
     with open("file.glwssa") as program:
         code = program.read()
+        error_code = code.splitlines()
 
     log("From main func (main.py): Code has been succesfully read", tags=["v"])
 
-    error_stack = ErrorStack()
-    log("From main func (main.py): Initialized successfully the errorstack", tags=["v"])
+    error_stack = ErrorStack(error_code)
+    log(f"From main func (main.py): Initialized successfully the errorstack, with the error_code being {len(error_code)}", tags=["v"])
 
 
-    tokenizer = Tokenizer(code)
+    tokenizer = Tokenizer(code, error_stack)
     # tokens = tokenizer.tokenize()
     tokens = tokenizer.tokenize_with_lines()
     log("From main func (main.py): Code has been succesfully tokenized", tags=["v"])
 
-    parser = ParserAST(tokens, tokenizer.token)
+    parser = ParserAST(tokens, tokenizer.token, error_stack)
     log("From main func (main.py): The parser has been succesfully initialized", tags=["v"])
     program_ast, program_name = parser.parse()
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
@@ -75,7 +81,7 @@ def main():
 
     analyzer = TreeAnalyzer()
     log("From main func (main.py): Starting analyzing of the tree", tags=["v"])
-    analyzer.analyze_types_tree(program_ast)
+    analyzer.analyze_types_tree(program_ast, error_stack)
     log("From main func (main.py): Program tree analyzer is ", tags=["v"])
 
 
@@ -85,7 +91,7 @@ def main():
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])
 
 
-    if not error_stack.errors:
+    if error_stack.errors_stack:
         error_stack.print_errors()
         return
     
@@ -131,6 +137,6 @@ if __name__ == "__main__":
     except:
         error_traceback = traceback.format_exc()
         log(error_traceback, ["e"], "both")
-        print("ΣΦΑΛΜΑ <I999> : Εσωτερικό σφάλμα του Διαμεταγλωττιστή.")
-        print("Τρέξε τον κώδικα σου με tags='all' exclude_tags='mtok' και έπειτα στείλε το '.log' αρχείο μαζί με τον", end="")
-        print(" κώδικα σου σε ένα νέο Issue στο github page του glwssa-compiler - https://github.com/theolaos/glwssa-compiler")
+        print("ΣΦΑΛΜΑ <IZ99> : Εσωτερικό καταστροφικό σφάλμα στην εκτέλεση του Διαμεταγλωττιστή.")
+        print("Τρέξε τον κώδικα σου με tags='all' exclude_tags='mtok' και έπειτα στείλε το '.log' αρχείο μαζί με τον", end=" ")
+        print("κώδικα σου σε ένα νέο Issue στο github page του glwssa-compiler - https://github.com/theolaos/glwssa-compiler")    

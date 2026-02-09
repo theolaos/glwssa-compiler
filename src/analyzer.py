@@ -11,8 +11,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .error import ErrorStack
+
 class TreeAnalyzer:
-    def analyze_types_tree(self, ast) -> None:
+    def analyze_types_tree(self, ast, error_stack: ErrorStack) -> None:
         """
         Analyzes everything in the program tree. If there are any errors it pushes them to the error stack.
 
@@ -26,3 +28,4 @@ class TreeAnalyzer:
         """
 
         self.ast = ast
+        self.error_stack = error_stack

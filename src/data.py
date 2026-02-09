@@ -13,7 +13,7 @@
 
 from dataclasses import dataclass
 
-@dataclass
+@dataclass(frozen=True)
 class Token:
     kind: str
     value: str
@@ -22,15 +22,14 @@ class Token:
     col_start: int
     col_end: int
 
-@dataclass
+@dataclass(frozen=True)
 class Scope:
     scope: str 
     token: Token
-    end: int = -1
     recoverable: bool = True
 
 # Dataclasses for error diagnostics
-@dataclass
+@dataclass(frozen=True)
 class Diagnostic: ...
 
 

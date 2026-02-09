@@ -20,7 +20,7 @@ from typing import Literal as _Literal
 LOG_FILE = "transpiler.log"
 GLOBAL_TAGS: set[str] = set()                               # Add tags here globally
 EXCLUDE_GLOBAL_TAGS: set[str] = set()
-DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "both"  # "both", "file", "print"
+DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "file"  # "both", "file", "print"
 LOGGING: bool = True
 
 

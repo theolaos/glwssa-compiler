@@ -11,18 +11,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-class ReachedEOFError(Exception):
-    """Exception raised when reached End Of File.
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
-
-
 VALID_VARIABLE_TYPES = {"INTEGERS", "CHARACTERS", "REAL", "LOGICAL"}
 VALID_PROCESS_EXPRESSION_TOKENS = {
     "IDENTIFIER",
@@ -36,9 +24,15 @@ VALID_PROCESS_EXPRESSION_TOKENS = {
 # the tokens below work as brakes, in case the programmer forgot to close the block
 END_TOKENS_FOR_BLOCK = ["END_PROGRAM", "FUNCTION", "END_FUNCTION", "PROCEDURE", "END_PROCEDURE"]
 
-from .log import log
+END_TOKENS_FOR_SUBSCOPE = ["START", "END_IF", "END_LOOP", "END_SWITCH", "UNTIL"]
+END_TOKENS_FOR_SCOPE = ["END_PROGRAM", "END_FUNCTION", "END_PROCEDURE"]
+START_TOKENS_FOR_SCOPE = ["FUNCTION", "PROCEDURE"]
 
-from .tokens import Token
+
+from .log import log
+from .data import *
+from .error import ErrorStack, end_matches_sub_scopes
+from .ast_nodes import *
 
 from typing import Optional as _Optional
 from typing import Union as _Union
@@ -47,11 +41,95 @@ from typing import Tuple as _Tuple
 from typing import Callable as _Callable
 
 
-from .ast import *
+class ScopeStack:
+    def __init__(self, error_stack: ErrorStack) -> None:
+        self.stack: list[Scope] = []
+        self.error = error_stack
+
+
+    def append(self, item: Scope):
+        self.stack.append(item)
+    
+
+    def pop(self) -> None:
+        """
+        Pops the last item.
+        """
+        self.stack.pop()
+
+
+    def expect_pop(self, value: Scope) -> bool:
+        """
+        The value here is a tuple with the END_TOKEN and an ID/Line for nested
+        differentiation.
+        """
+        if not self.stack:
+            self.error.push(
+                ScopeNotClosed(value.token, None)
+            )
+            return False
+
+
+        top = self.stack[-1]
+         
+        bottom = self.stack[0]
+
+        if top.scope != value.scope:
+            kind = value.token.kind
+
+            # Assumes that the user made a mistake.
+            if kind in END_TOKENS_FOR_SUBSCOPE:
+                self.error.push(
+                    ScopeNotClosed(value.token, top)
+                )
+                self.stack.pop()
+            
+            elif kind in END_TOKENS_FOR_SCOPE:
+                # if only kind == bottom then pushes all the inbetween scopes out. with errs
+                for scope in reversed(self.stack[1:]):
+                    self.error.push(
+                        ScopeNotClosed(value.token, scope)
+                    )
+
+                # if kind != bottom then pushes the kind and the inbetween scopes out. with errs
+                if value.scope == bottom.scope:
+                    self.error.push(
+                        ScopeNotClosed(value.token, bottom)
+                    )  
+
+                self.stack.clear()
+            elif kind in START_TOKENS_FOR_SCOPE:
+                for scope in reversed(self.stack):
+                    self.error.push(
+                        ScopeNotClosed(value.token, scope)
+                    )
+
+            return False
+        
+        self.stack.pop()
+        return True
+
+
+    def expect_empty(self, token: Token) -> None:
+        if not self.stack:
+            for scope in reversed(self.stack):
+                self.error.push(
+                    ScopeNotClosed(token, scope)
+                )
+    
+
+    def EOF_pop(self, token: Token) -> None:
+        for scope in reversed(self.stack):
+            self.error.push(
+                ScopeNotClosed(token, scope)
+            )
+
 
 
 class ParserAST:
-    def __init__(self, tokens, token):
+    def __init__(self, tokens, token, error_stack):
+        self.error_stack = error_stack
+
         self.program_tokens: _List[_List[_Tuple[str, str]]] = tokens
         self.tokens = token
 
@@ -90,6 +168,8 @@ class ParserAST:
         )
         self.end_program = False
 
+        self.last_scope = ScopeStack(error_stack)
+
 
     def current_token(self, index: int=0, default: Token = Token("NO_TOKEN","NO_VALUE", -1, -1, -1, -1)) -> Token:
         """
@@ -103,13 +183,13 @@ class ParserAST:
         :rtype: Tuple[str, str]
         """
         if self.current_line >= len(self.program_tokens):
-            return default
+            self.current_line -= 1
+            line = self.get_current_line()
+            self.current_line += 1
+            return Token("EOF","EOF", line, -1, -1, -1)
 
         if self.current_token_index + index < len(self.program_tokens[self.current_line]) and self.current_token_index + index >= 0:
             return self.program_tokens[self.current_line][self.current_token_index + index]
-
-        if len(self.program_tokens[self.current_line]) == 0:
-            return Token("EMPTY_LINE", "NO_VALUE", 0, self.current_line, 0, 0)
 
         return default  # Return None if out of bounds
 
@@ -128,17 +208,9 @@ class ParserAST:
         self.current_token_index += 1
 
 
-    def next_line(self, check: bool = True):
+    def next_line(self) -> bool:
         self.current_line += 1
         self.current_token_index = 0
-
-        """
-        In case we reached the end of the file.
-        """
-        if self.current_line > len(self.program_tokens)-1 and check:
-            self.current_line -= 1
-            line = self.get_current_line()
-            raise ReachedEOFError(f"Reached the end of the file, Line : {line}")
 
 
     def parse(self):
@@ -154,92 +226,104 @@ class ParserAST:
 
             if token_type == "PROGRAM":
                 log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=["debug", "ct"])
-                try:
-                    self.parse_program_name(self.program)
-                    self.parse_variables_block(self.program)
-                    self.parse_program_block(self.parse_program_block_dict)                
-                except ReachedEOFError as e:
-                    raise ReachedEOFError(f"Reached at the end of file ")
+                program_scope = Scope("PROGRAM", self.current_token())
+                self.last_scope.append(program_scope)
+                
+                self.parse_program_name(self.program)
+                self.parse_variables_block(self.program)
+                self.parse_block(self.program, END_TOKENS_FOR_BLOCK, self.parse_program_block_dict)
+                # expect pop is handled by the method end_program
             elif token_type == "PROCEDURE":
                 log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=["debug", "ct"])
+                token = self.current_token()
+                self.last_scope.expect_empty(token)
+                self.last_scope.append(Scope("PROCEDURE", token))
+                
                 procedure: Procedure = self.parse_procedure()
                 self.procedures.append(procedure)
+                
             elif token_type == "FUNCTION":
                 log(f"From create tree(parser_ast.py): Found FUNCTION in line {self.current_line}", tags=["debug", "ct"])
+                function_scope = Scope("FUNCTION", self.current_token())
+                self.last_scope.append(function_scope)
+                
                 function: Function = self.parse_function()
                 self.functions.append(function)
+                
+                self.last_scope.expect_pop(function_scope) # There is no need for a global EOF handler
             
-            if self.current_line >= len(self.program_tokens):
+            if self.current_token().kind == "EOF":
                 log("From create tree(parser_ast.py): Finished creating tree", tags=["ct"])
                 break
     
 
     def parse_variables_block(self, branch: _Union[Block, Program]) -> None:
         self.next_line()
+
         if self.soft_match("CONSTANTS"):
+            self.last_scope.append(Scope("CONSTANTS", self.current_token()))
+
             self.expect_token_alone("CONSTANTS")
             self.next_line()
             self.parse_constant_declaration(branch)
             self.next_line()
+            if self.soft_match("VARIABLES") or self.soft_match("START"):
+                self.last_scope.expect_pop(Scope("CONSTANTS", self.current_token()))
+
             log(f"From parse_variables_block (parser_ast.py): Finished parsing the constants", tags=["pvb"])
-        
+
 
         if self.soft_match("VARIABLES"):
+            self.last_scope.append(Scope("VARIABLES", self.current_token()))
+
             self.expect_token_alone("VARIABLES")
             self.next_line()
             self.parse_declaration(branch)
+            if self.soft_match("START"):
+                self.last_scope.expect_pop(Scope("VARIABLES", self.current_token()))
             log(f"From parse_variables_block (parser_ast.py): Finished parsing the variables", tags=["pvb"])
         
+        if self.soft_match("EOF"):
+            self.last_scope.EOF_pop(self.current_token())
+
         self.expect_token_alone("START")
         self.next_line()
-
-
-    def parse_program_block(self, 
-            dict_of_acceptable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]]
-        ) -> None:
-        while self.current_line < len(self.program_tokens):
-            token_type = self.current_token().kind
-            if token_type in dict_of_acceptable_tokens:
-                log(f"From parse_code_block (parser_ast.py): Found {token_type} in main program. In line {self.get_current_line()}", tags=["v"])
-                dict_of_acceptable_tokens[token_type](self.program)
-                self.next_line()
-
-            if self.end_program:
-                break
-        
-        if not self.end_program:
-            raise SyntaxError("Program did not finish. Don't forget to put END_PROGRAM")
 
 
     def parse_block(self, 
             branch: _Union[Block, Program], 
             end_tokens: _List[str], 
-            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]], # {"",func()}
-            block_kind: str = "scope"
+            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]] # {"",func()}
         ) -> None:
         """
-        Parse block for and If (ΑΝ), for (ΓΙΑ) blocks  
+        Parse block 
         """
-        # TODO, should be able to pass the tokens that it can recognize
+        # TODO: should be able to do what the program block does.
 
         log("From parse_block (parser_ast.py): Started parse block.", tags=["b"])
         log(f"From parse_block (parser_ast.py): {self.current_token()} in line {self.get_current_line()}.", tags=["b"])
         while self.current_line < len(self.program_tokens):
             log(f"From parse_block (parser_ast.py): {self.current_token()}.", tags=["b"])
-            token = self.current_token()
-            token_type = token.kind
 
-            if token_type in recognizable_tokens:
+            if self.current_token().kind in recognizable_tokens:
+                token_type = self.current_token().kind
                 log(f"From parse_block (parser_ast.py): Inside IF/LOOP found {token_type}", tags=["b"])
                 recognizable_tokens[token_type](branch)
                 self.next_line()
 
-            if token_type in end_tokens:
+            if self.current_token().kind in end_tokens:
+                
                 break
-        
-        if self.current_token().kind not in end_tokens:
-            raise SyntaxError(f"{block_kind} did not finish. Don't forget to put the END token of the scope")            
+            
+            # because it can be parsed.
+            if self.end_program:
+                self.end_program = False
+                break
 
+
+        token = self.current_token()
+        if token.kind == "EOF":
+            self.last_scope.EOF_pop(token)
 
         log("From parse_block (parser_ast.py): Finished parse block.", tags=["b"])
 
@@ -299,14 +383,13 @@ class ParserAST:
             raise SyntaxError(f"Expected NEWLINE in the end of line: {self.get_current_line()}. Encountered {self.current_token()} instead")
 
 
-    def check_eof(self, scope: str) -> None:
+    def check_eof(self, msg: str) -> None:
         """
         In case we reached the end of the file.
         """
         if self.current_line > len(self.program_tokens)-1:
             self.current_line -= 1
             line = self.get_current_line()
-            raise SyntaxError(f"Reached the end of the file, while in the scope {scope}. Line : {line}")
 
     # __________________________________________________________________________________________________
 
@@ -513,7 +596,7 @@ class ParserAST:
         else:
             raise SyntaxError(
                 f"Unexpected token: {token_type}, with value: {token_value}, index {self.current_token_index}, line {self.current_token(-self.current_token_index).line}"
-                )
+            )
 
 
     # __________________________________________________________________________________________________
@@ -582,6 +665,8 @@ class ParserAST:
 
     def parse_end_program(self, branch: _Union[Block, Program]):
         self.match("END_PROGRAM")
+        self.last_scope.expect_pop(Scope("PROGRAM", self.current_token()))
+
         self.end_program = True
 
         if len(self.program_tokens[self.current_line]) == 2:
@@ -591,7 +676,7 @@ class ParserAST:
                 raise SyntaxError(f"Expected the progran name in END_PROGRAM to be {self.program_name}, but found {self.current_token().value}. Line: {self.get_current_line()}")
         else:
             self.expect_token_alone("END_PROGRAM")
-
+        
 
     def parse_constant_declaration(self, branch: _Union[Block, Program]):
         log("From parse_constant_declaration (parser_ast.py): Started parsing constants ", tags=["vd"])
@@ -605,7 +690,7 @@ class ParserAST:
             self.expect("EQ")
             expr = self.parse_expression()
             
-            self.expect_eol()
+            self.expect_eol() # TODO investigate this
 
             # self.constants_table[]
             branch.body.append(
@@ -822,7 +907,8 @@ class ParserAST:
         branches_node = []
 
         start_line = self.current_token().line
-        self.next_token()  # Skip "ΑΝ" or "ΑΛΛΙΩΣ_ΑΝ"
+        self.last_scope.append(Scope("IF", self.current_token()))
+        self.next_token()  # Skip "ΑΝ"
         condition_tokens = self.parse_expression()
 
         self.expect("THEN")
@@ -832,11 +918,11 @@ class ParserAST:
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(then_branch, ["ELSE", "ELSE_IF","END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+        self.parse_block(then_branch, ["ELSE_IF", "ELSE", "END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
         branches_node.append(Branch(condition_tokens, then_branch))
 
-        # Handle ΑΛΛΙΩΣ_ΑΝ (else if) recursively
+        # Handle ΑΛΛΙΩΣ_ΑΝ (else if)
         while self.soft_match("ELSE_IF"):
             log(f"From parse_if (parser_ast.py): Current token in the loop is {self.current_token()}", tags=["pi"])
             # self.next_token() # parse if already skips the IF token (as well the ELSE_IF token)
@@ -847,7 +933,7 @@ class ParserAST:
             self.expect_eol()
             self.next_line()
             temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ["ELSE", "ELSE_IF","END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)  # Recursively parse the else-if block
+            self.parse_block(temp_elif_branch, ["ELSE_IF", "ELSE", "END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
             branches_node.append(Branch(elif_condition_tokens, temp_elif_branch))
 
         if not branches_node:
@@ -866,11 +952,9 @@ class ParserAST:
 
         log(f"From parse_if (parser_ast.py): Expecting token {"END_IF"}", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match("END_IF"):
-            raise SyntaxError(
-                f"Expected END_IF for the IF scope from line {start_line} but found {self.current_token().kind} instead."
-            )
-        log(f"From parse_if (parser_ast.py): Found {"END_IF"}", tags=["eta"])
+        token = self.current_token()
+        self.last_scope.expect_pop(Scope(end_matches_sub_scopes[token.kind], token))
+
 
         branch.body.append(
             If(
@@ -938,6 +1022,9 @@ class ParserAST:
 
     def parse_while(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line
+        self.last_scope.append(
+            Scope("LOOP", self.current_token())
+        )
         self.next_token()
         condition = self.parse_expression()
 
@@ -948,15 +1035,14 @@ class ParserAST:
         while_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(while_branch, ["END_LOOP"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+        self.parse_block(while_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
         log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
         self.expect_tokens_line(1)
-        if not self.soft_match("END_LOOP"):
-            raise SyntaxError(
-                f"Expected END_LOOP for the WHILE scope from line {start_line} but found {self.current_token().kind} instead."
-            )
-        log(f"From parse_while (parser_ast.py): Found {"END_LOOP"}", tags=["eta"])
+        token = self.current_token()
+        self.last_scope.expect_pop(
+            Scope(end_matches_sub_scopes[token.kind], token)
+        )
 
         branch.body.append(
             While(
@@ -1106,11 +1192,9 @@ class ParserAST:
 
         # self.next_line() # self.next_line() does a self.next_line() first thing.
         body = Block([])
-        try:
-            self.parse_variables_block(body)
-        except ReachedEOFError as e:
-            raise ReachedEOFError(f"Reached the end of the code file at line {self.get_current_line()}, but didn't finish the scope of Function. Type END_FUNCTION.")
-        
+
+        self.parse_variables_block(body)
+
         log(f"From parse_function (parser_ast.py): Done with the parsing of the variables block", tags=["pf"])
 
         function_block_dict = self.parse_block_dict.copy()
@@ -1120,6 +1204,7 @@ class ParserAST:
 
         self.parse_block(body, END_TOKENS_FOR_BLOCK, function_block_dict)
         log(f"From parse_function (parser_ast.py): Done with the parsing of the main block of the function", tags=["pf"])
+
 
         func = Function(
             name=name,

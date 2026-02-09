@@ -13,10 +13,8 @@
 
 import re
 
-from dataclasses import dataclass
-
 from .log import log
-from .tokens import Token
+from .data import Token
 
 
 def gsk(keyword: str) -> str:
@@ -32,7 +30,9 @@ def gsk(keyword: str) -> str:
 
 
 class Tokenizer:
-    def __init__(self, code):
+    def __init__(self, code, error_stack):
+        self.error_stack = error_stack
+
         self.code = code
         self.tokens = []
         self.greek_to_english = {
@@ -159,7 +159,7 @@ class Tokenizer:
 
         for line_no, line in enumerate(self.code.splitlines(), start=1):
             line_tokens = []
-            print(line, line_no)
+            log(line, line_no, tags=["lines"])
 
             column = 0
             for match in re.finditer(token_regex, line):

@@ -21,3 +21,37 @@ class Token:
     column: int
     col_start: int
     col_end: int
+
+@dataclass
+class Scope:
+    scope: str 
+    token: Token
+    end: int = -1
+    recoverable: bool = True
+
+# Dataclasses for error diagnostics
+@dataclass
+class Diagnostic: ...
+
+
+@dataclass(frozen=True)
+class Expected(Diagnostic):
+    expected: str 
+    got: Token
+
+
+@dataclass(frozen=True)
+class ExpectedOneToken(Diagnostic):
+    ...
+
+
+@dataclass(frozen=True)
+class ScopeNotClosed(Diagnostic):
+    found: Token
+    expected: Scope
+
+
+@dataclass(frozen=True)
+class CommandOutOfPlace(Diagnostic):
+    command: Token
+

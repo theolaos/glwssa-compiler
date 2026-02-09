@@ -4,7 +4,7 @@ from typing import Optional as _Optional
 from typing import Union as _Union
 from typing import List as _List
 
-from .tokens import Token
+from .data import Token
 
 class Node:
     ...

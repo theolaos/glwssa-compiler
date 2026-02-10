@@ -13,6 +13,7 @@
 
 from dataclasses import dataclass
 
+# A token should never be changed
 @dataclass(frozen=True)
 class Token:
     kind: str
@@ -30,7 +31,7 @@ class Scope:
     recoverable: bool = True
 
 
-# Dataclasses for error diagnostics
+# Dataclasses for error diagnostics ____________________________________
 @dataclass(frozen=True)
 class Diagnostic: ...
 

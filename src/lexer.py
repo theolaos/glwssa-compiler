@@ -29,7 +29,7 @@ def gsk(keyword: str) -> str:
     return f"(?<![A-Za-zΑ-Ωα-ω0-9_]){keyword}(?![A-Za-zΑ-Ωα-ω0-9_])"
 
 
-class Tokenizer:
+class Lexer:
     def __init__(self, code, error_stack):
         self.error_stack = error_stack
 
@@ -145,7 +145,7 @@ class Tokenizer:
             ('NEWLINE', r'\n'),
             ('MISMATCH', r'.'),             # Any other character
         ]
-        self.token = [i[0] for i in self.token_specification]
+        self.token_type = [i[0] for i in self.token_specification]
 
 
     def tokenize_with_lines(self):
@@ -155,7 +155,7 @@ class Tokenizer:
         )
 
         program_name_expected = False
-        token_lines = []
+        token_lines: list[list[Token]] = []
 
         for line_no, line in enumerate(self.code.splitlines(), start=1):
             line_tokens = []

@@ -131,12 +131,15 @@ class ScopeStack:
             )
 
 
-
 class ParserAST:
-    def __init__(self, tokens, token, error_stack):
+    def __init__(self, 
+            tokens: _List[_List[Token]], 
+            token: _List[str], 
+            error_stack: ErrorStack
+        ):
         self.error_stack = error_stack
 
-        self.program_tokens: _List[_List[_Tuple[str, str]]] = tokens
+        self.program_tokens = tokens
         self.tokens = token
 
         self.program = Program([])
@@ -338,6 +341,8 @@ class ParserAST:
     # __________________________________________________________________________________________________
 
     def expect_tokens_line(self, n: int) -> None:
+        if self.current_line > len(self.program_tokens) - 1 :
+            return
         if len(self.program_tokens[self.current_line]) is not n:
             raise SyntaxError(
                 f"Expected only {n} tokens in line: {self.current_token(-1).line}. Instead found {len(self.program_tokens[self.current_line])} tokens."
@@ -1047,11 +1052,14 @@ class ParserAST:
         self.parse_block(while_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
         log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
-        self.expect_tokens_line(1)
+        
+        # I am sure that this token is an END_TOKEN, or even a START_SCOPE token, So I let expect_pop to take care of it.
         token = self.current_token()
         self.last_scope.expect_pop(
             Scope(end_matches_sub_scopes[token.kind], token)
         )
+        # I check that we are EOL
+        self.expect_eol()
 
         branch.body.append(
             While(

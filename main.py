@@ -17,7 +17,7 @@ import os
 import traceback
 
 from src.error import ErrorStack
-from src.tokenizer import Tokenizer
+from src.lexer import Lexer
 from src.parser_ast import ParserAST
 from src.analyzer import TreeAnalyzer
 from src.backend import TranspilerBackend_cpp
@@ -52,26 +52,26 @@ def main():
     log("From main func (main.py): main function started.", tags=["v"])
 
     code: str = ""
-    error_code: list[str] = []
+    list_code: list[str] = []
 
     compile_command: list[str] = []
 
     with open("file.glwssa") as program:
         code = program.read()
-        error_code = code.splitlines()
+        list_code = code.splitlines()
 
     log("From main func (main.py): Code has been succesfully read", tags=["v"])
 
-    error_stack = ErrorStack(error_code)
-    log(f"From main func (main.py): Initialized successfully the errorstack, with the error_code being {len(error_code)}", tags=["v"])
+    error_stack = ErrorStack(list_code)
+    log(f"From main func (main.py): Initialized successfully the errorstack, with the error_code being {len(list_code)}", tags=["v"])
 
 
-    tokenizer = Tokenizer(code, error_stack)
-    # tokens = tokenizer.tokenize()
-    tokens = tokenizer.tokenize_with_lines()
+    lexer = Lexer(code, error_stack)
+    # tokens = lexer.tokenize()
+    tokens = lexer.tokenize_with_lines()
     log("From main func (main.py): Code has been succesfully tokenized", tags=["v"])
 
-    parser = ParserAST(tokens, tokenizer.token, error_stack)
+    parser = ParserAST(tokens, lexer.token_type, error_stack)
     log("From main func (main.py): The parser has been succesfully initialized", tags=["v"])
     program_ast, program_name = parser.parse()
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])

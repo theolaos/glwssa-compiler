@@ -28,6 +28,7 @@ end_matches_sub_scopes = {
     "END_PROGRAM" : "PROGRAM",
     "END_PROCEDURE" : "PROCEDURE",
     "END_FUNCTION" : "FUNCTION",
+    "EOF" : "EOF"
 }
 
 end_matches_sub_scopes_msg = {

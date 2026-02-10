@@ -43,6 +43,7 @@ def main():
     # ct - create tree
     # nodes - prints all the nodes of the AST tree
     # pcp - parse call procedure
+    # pep - parse end program method logging
     flush_log_file()
     # set_global_tags(tags=["e"])
     set_global_tags(tags=["all"], exclude_tags=["mtok"])

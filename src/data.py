@@ -22,11 +22,13 @@ class Token:
     col_start: int
     col_end: int
 
+
 @dataclass(frozen=True)
 class Scope:
     scope: str 
     token: Token
     recoverable: bool = True
+
 
 # Dataclasses for error diagnostics
 @dataclass(frozen=True)

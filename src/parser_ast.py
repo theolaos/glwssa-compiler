@@ -63,6 +63,7 @@ class ScopeStack:
         The value here is a tuple with the END_TOKEN and an ID/Line for nested
         differentiation.
         """
+        log(f"From expect_pop (parser_ast.py): This is the stack: {self.stack}", tags=["de"])
         if not self.stack:
             self.error.push(
                 ScopeNotClosed(value.token, None)
@@ -79,6 +80,7 @@ class ScopeStack:
 
             # Assumes that the user made a mistake.
             if kind in END_TOKENS_FOR_SUBSCOPE:
+                log("From expect_pop (parser_ast.py): Assumed the user made an error with the subscope.", tags=["de"])
                 self.error.push(
                     ScopeNotClosed(value.token, top)
                 )
@@ -86,27 +88,31 @@ class ScopeStack:
             
             elif kind in END_TOKENS_FOR_SCOPE:
                 # if only kind == bottom then pushes all the inbetween scopes out. with errs
+                log("From expect_pop (parser_ast.py): User made an error in the scope", tags=["de"])
                 for scope in reversed(self.stack[1:]):
                     self.error.push(
                         ScopeNotClosed(value.token, scope)
                     )
 
                 # if kind != bottom then pushes the kind and the inbetween scopes out. with errs
-                if value.scope == bottom.scope:
+                if value.scope != bottom.scope:
+                    log("From expect_pop (parser_ast.py): User made an error in the scope", tags=["de"])
                     self.error.push(
                         ScopeNotClosed(value.token, bottom)
                     )  
 
                 self.stack.clear()
             elif kind in START_TOKENS_FOR_SCOPE:
+                log("From expect_pop (parser_ast.py): User made an error in the scope, it never ended and a start scope token was found", tags=["de"])
                 for scope in reversed(self.stack):
                     self.error.push(
                         ScopeNotClosed(value.token, scope)
                     )
-
+            log(f"From expect_pop (parser_ast.py): This is the stack after the error reporting: {self.stack}", tags=["de"])
             return False
         
         self.stack.pop()
+        log(f"From expect_pop (parser_ast.py): This is the stack after the pop: {self.stack}", tags=["de"])
         return True
 
 
@@ -228,10 +234,11 @@ class ParserAST:
                 log(f"From create tree(parser_ast.py): Found PROGRAM in line {self.current_line}", tags=["debug", "ct"])
                 program_scope = Scope("PROGRAM", self.current_token())
                 self.last_scope.append(program_scope)
-                
+                temp = END_TOKENS_FOR_BLOCK.copy()
+                temp.remove("END_PROGRAM")
                 self.parse_program_name(self.program)
                 self.parse_variables_block(self.program)
-                self.parse_block(self.program, END_TOKENS_FOR_BLOCK, self.parse_program_block_dict)
+                self.parse_block(self.program, temp, self.parse_program_block_dict, scope="PROGRAM")
                 # expect pop is handled by the method end_program
             elif token_type == "PROCEDURE":
                 log(f"From create tree(parser_ast.py): Found PROCEDURE in line {self.current_line}", tags=["debug", "ct"])
@@ -293,7 +300,8 @@ class ParserAST:
     def parse_block(self, 
             branch: _Union[Block, Program], 
             end_tokens: _List[str], 
-            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]] # {"",func()}
+            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]], # {"",func()}
+            scope: str = "scope"
         ) -> None:
         """
         Parse block 
@@ -312,7 +320,6 @@ class ParserAST:
                 self.next_line()
 
             if self.current_token().kind in end_tokens:
-                
                 break
             
             # because it can be parsed.
@@ -323,9 +330,10 @@ class ParserAST:
 
         token = self.current_token()
         if token.kind == "EOF":
+            # it already checks if the list is empty
             self.last_scope.EOF_pop(token)
 
-        log("From parse_block (parser_ast.py): Finished parse block.", tags=["b"])
+        log(f"From parse_block (parser_ast.py): Finished parse block {scope}", tags=["b"])
 
     # __________________________________________________________________________________________________
 
@@ -665,6 +673,7 @@ class ParserAST:
 
     def parse_end_program(self, branch: _Union[Block, Program]):
         self.match("END_PROGRAM")
+        log("From parser_end_program (parser_ast.py): Parsing end program line", tags=["pep"])
         self.last_scope.expect_pop(Scope("PROGRAM", self.current_token()))
 
         self.end_program = True
@@ -918,7 +927,7 @@ class ParserAST:
         then_branch = Block([])
 
         # Parse the body of the IF block
-        self.parse_block(then_branch, ["ELSE_IF", "ELSE", "END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+        self.parse_block(then_branch, ["ELSE_IF", "ELSE"] + END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
         branches_node.append(Branch(condition_tokens, then_branch))
 
@@ -933,7 +942,7 @@ class ParserAST:
             self.expect_eol()
             self.next_line()
             temp_elif_branch = Block([])
-            self.parse_block(temp_elif_branch, ["ELSE_IF", "ELSE", "END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+            self.parse_block(temp_elif_branch, ["ELSE_IF", "ELSE"] + END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
             branches_node.append(Branch(elif_condition_tokens, temp_elif_branch))
 
         if not branches_node:
@@ -946,7 +955,7 @@ class ParserAST:
         if self.soft_match("ELSE"):
             self.expect_token_alone("ELSE")
             self.next_line()
-            self.parse_block(else_branch, ["END_IF"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+            self.parse_block(else_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
         
         # self.expect_token_alone("END_IF")
 

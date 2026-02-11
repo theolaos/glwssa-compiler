@@ -18,6 +18,7 @@ from dataclasses import dataclass
 class Token:
     kind: str
     value: str
+    original_value: str
     line: int
     column: int
     col_start: int
@@ -38,8 +39,10 @@ class Diagnostic: ...
 
 @dataclass(frozen=True)
 class Expected(Diagnostic):
-    expected: str 
+    expected: str
     got: Token
+    context: str = ""
+    translate: bool = True
 
 
 @dataclass(frozen=True)

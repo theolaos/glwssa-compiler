@@ -33,11 +33,84 @@ end_matches_sub_scopes = {
 
 end_matches_sub_scopes_msg = {
     "IF" : "ΤΕΛΟΣ_ΑΝ",
-    "FOR" : "ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ",
-    "WHILE" : "ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ",
+    "LOOP" : "ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ",
     "START_LOOP" : "ΜΕΧΡΙΣ_ΟΤΟΥ",
     "SWITCH" : "ΤΕΛΟΣ_ΕΠΙΛΟΓΩΝ",
 }
+
+tokens_to_greek = {
+    'PROGRAM': 'ΠΡΟΓΡΑΜΜΑ',      # Program declaration
+    'START': 'ΑΡΧΗ',             # Program code starts, and variable declaration is finished
+    'CONSTANTS': 'ΣΤΑΘΕΡΕΣ',
+    'VARIABLES': 'ΜΕΤΑΒΛΗΤΕΣ',   # Variables section
+    'INTEGERS': 'ΑΚΕΡΑΙΕΣ',      # Integer type
+    'CHARACTERS':'ΧΑΡΑΚΤΗΡΕΣ',  # Character type
+    'REALS':'ΠΡΑΓΜΑΤΙΚΕΣ',       # Real type
+    'LOGICALS':'ΛΟΓΙΚΕΣ',        # Logical type
+    'INTEGER':'ΑΚΕΡΑΙΑ',      # Integer type
+    'CHARACTER':'ΧΑΡΑΚΤΗΡΑΣ',  # Character type
+    'REAL':'ΠΡΑΓΜΑΤΙΚΗ',       # Real type
+    'LOGICAL':'ΛΟΓΙΚΗ',        # Logical type
+    'IF':'ΑΝ',                  # If statement
+    'THEN':'ΤΟΤΕ',              # Then keyword
+    'ELSE_IF':'ΑΛΛΙΩΣ_ΑΝ',      # Then keyword
+    'ELSE':'ΑΛΛΙΩΣ',            # Else keyword
+    'END_IF':'ΤΕΛΟΣ_ΑΝ',        # End if
+    'SWITCH':'ΕΠΙΛΕΞΕ',
+    'CASE':'ΠΕΡΙΠΤΩΣΗ',
+    'END_SWITCH':'ΤΕΛΟΣ_ΕΠΙΛΟΓΩΝ',
+    'FOR':'ΓΙΑ',
+    'FROM':'ΑΠΟ',
+    'TO':'ΜΕΧΡΙ',
+    'STEP':'ΜΕ_ΒΗΜΑ',
+    'WHILE':'ΟΣΟ',
+    'REPEAT':'ΕΠΑΝΑΛΑΒΕ',
+    'END_LOOP':'ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ',        # End if
+    'START_LOOP':'ΑΡΧΗ_ΕΠΑΝΑΛΗΨΗΣ',
+    'UNTIL':'ΜΕΧΡΙΣ_ΟΤΟΥ',
+    'END_PROGRAM':'ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ',
+    'ASSIGN': '<-',             # Assignment operator
+    'READ' : 'ΔΙΑΒΑΣΕ',           # Read input
+    'WRITE' : 'ΓΡΑΨΕ',            # Write output
+    'NEQ': '<>',      # Match '<>' only if not part of a larger token
+    'GTE': '>=',                 # Greater than or equal to
+    'LTE': '<=',                 # Less than or equal to
+    'GT' : '>',                   # Greater than
+    'LT' : '<',                   # Less than
+    'EQ' : '=',                   # Equal to
+    'NOT' : 'ΟΧΙ',
+    'AND' : 'ΚΑΙ',
+    'OR' : 'Ή',
+    'CALL' : 'ΚΑΛΕΣΕ',
+    'PROCEDURE' : 'ΔΙΑΔΙΚΑΣΙΑ',
+    'END_PROCEDURE' : 'ΤΕΛΟΣ_ΔΙΑΔΙΚΑΣΙΑΣ',
+    'FUNCTION' : 'ΣΥΝΑΡΤΗΣΗ',
+    'END_FUNCTION' : 'ΤΕΛΟΣ_ΣΥΝΑΡΤΗΣΗΣ',
+    'BUILTIN_FUNCTION' : 'ΕΣΩΤΕΡΙΚΗ ΣΥΝΑΡΤΗΣΗ', # It might be better to use multiple different tokens for each built in function
+    'STRING' : 'ΣΥΜΒΟΛΟΣΕΙΡΑ', 
+    'PERIOD' : '..',
+    'FLOAT' : 'ΔΕΚΑΔΙΚΗ ΤΙΜΗ',
+    'NUMBER' : 'ΑΡΙΘΜΟΣ', # The + in regex means that all the sequential numebrs are counted as one
+    'BOOLEAN' : 'ΛΟΓΙΚΗ ΤΙΜΗ',
+    'COLON' : ':',
+    'COMMA' : ',',
+    'LBRACKET' : '[', # for arrays
+    'RBRACKET' : ']',
+    'LPAREN' : '(',
+    'RPAREN' : ')',
+    'PLUS' : '+',
+    'MINUS' : '-',
+    'MUL' : '*',
+    'FDIV' : '/',
+    'POW' : '^',
+    'MOD' : 'MOD',
+    'IDIV' : 'DIV',
+    'IDENTIFIER' : 'ΑΝΑΓΝΩΡΙΣΤΙΚΟ',
+
+    'NEWLINE':'ΝΕΑ ΓΡΑΜΜΗ',
+    'PROGRAM_NAME':'ΟΝΟΜΑ ΠΡΟΓΡΑΜΜΑΤΟΣ',
+}
+
 
 def DebugIssue():
     """
@@ -114,7 +187,24 @@ class ErrorStack:
 
 
     def expected(self, diag: Expected) -> None:
-        ...
+        expected: str = diag.expected
+        got: Token = diag.got
+        context: str = diag.context
+        line: int = got.line
+
+        try:
+            if diag.translate: 
+                expected = tokens_to_greek[expected]
+        except KeyError:
+            ...
+
+        print(f"ΣΦΑΛΜΑ <GP01> γρ.{line}. Περίμενα '{expected}' αλλά βρήκα '{got.value}'.")
+
+        if context:
+            print(context)
+        
+        add_arrows(self.code_file, line, got.col_start, got.col_end)
+
 
 
     def expected_one_token(self, diag: ExpectedOneToken) -> None:

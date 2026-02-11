@@ -164,6 +164,7 @@ class Lexer:
             column = 0
             for match in re.finditer(token_regex, line):
                 kind = match.lastgroup
+                original_value = match.group()
                 value = match.group()
                 # log(kind, value, tags=["mtok"])
 
@@ -204,7 +205,7 @@ class Lexer:
 
                 elif kind == 'BOOLEAN':
                     value = 'true' if value == 'ΑΛΗΘΗΣ' else 'false'
-                line_tokens.append(Token(kind, value, line_no, column, match.start(), match.end()-1))
+                line_tokens.append(Token(kind, value, original_value, line_no, column, match.start(), match.end()-1))
                 column += 1
 
             if line_tokens:

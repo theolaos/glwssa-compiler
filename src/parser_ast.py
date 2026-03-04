@@ -118,18 +118,11 @@ class ScopeStack:
 
 
     def expect_empty(self, token: Token) -> None:
-        if not self.stack:
+        if self.stack:
             for scope in reversed(self.stack):
                 self.error.push(
                     ScopeNotClosed(token, scope)
                 )
-    
-
-    def EOF_pop(self, token: Token) -> None:
-        for scope in reversed(self.stack):
-            self.error.push(
-                ScopeNotClosed(token, scope)
-            )
 
 
 class ParserAST:
@@ -268,8 +261,10 @@ class ParserAST:
                 
                 self.last_scope.expect_pop(function_scope) # There is no need for a global EOF handler
             
-            if self.current_token().kind == "EOF":
-                log("From create tree(parser_ast.py): Finished creating tree", tags=["ct"])
+            token = self.current_token()
+            if token.kind == "EOF":
+                log("From create tree(parser_ast.py): Finished creating tree, checking the succes of the creation.", tags=["ct"])
+                self.last_scope.expect_empty(token)
                 break
     
 
@@ -299,8 +294,8 @@ class ParserAST:
                 self.last_scope.expect_pop(Scope("VARIABLES", self.current_token()))
             log(f"From parse_variables_block (parser_ast.py): Finished parsing the variables", tags=["pvb"])
         
-        if self.soft_match("EOF"):
-            self.last_scope.EOF_pop(self.current_token())
+        # if self.soft_match("EOF"):
+        #     self.last_scope.expect_empty(self.current_token())
 
         self.expect_token_alone("START")
         self.next_line()
@@ -334,20 +329,20 @@ class ParserAST:
                 self.end_program = False
                 break
 
-
         token = self.current_token()
-        if token.kind == "EOF":
-            # Checks if the scope stack is empty. Else it pushes to the error stack "SCOPE NOT CLOSED" error
-            # for every scope that was still in the non empty scope stack
-            self.last_scope.EOF_pop(token)
+        # if token.kind == "EOF":
+        #     # Checks if the scope stack is empty. Else it pushes to the error stack "SCOPE NOT CLOSED" error
+        #     # for every scope that was still in the non empty scope stack
+        #     self.last_scope.expect_empty(token)
 
         log(f"From parse_block (parser_ast.py): Finished parse block {scope}", tags=["b"])
 
     # __________________________________________________________________________________________________
 
     def expect_tokens_line(self, n: int) -> None:
-        if self.current_line > len(self.program_tokens) - 1 :
+        if self.check_eof():
             return
+
         if len(self.program_tokens[self.current_line]) is not n:
             raise SyntaxError(
                 f"Expected only {n} tokens in line: {self.current_token(-1).line}. Instead found {len(self.program_tokens[self.current_line])} tokens."
@@ -375,6 +370,8 @@ class ParserAST:
         """
         Checks token, and pushes an exception if it not expected.
         """
+        if self.check_eof():
+            return
         if self.current_token().kind != expected_type:
             self.error_stack.push(
                 Expected(
@@ -415,7 +412,9 @@ class ParserAST:
         """
         Expects it to be EOL (End of line), if it is not, it throws an error. It does not go to the next line
         """
-        if not self.current_token_index >= len(self.program_tokens[self.current_line]) and not self.check_eof():
+        if self.check_eof():
+            return
+        if self.current_token_index < len(self.program_tokens[self.current_line]) and not self.check_eof():
             self.error_stack.push(
                 Expected("NEWLINE", self.current_token())
             )
@@ -1086,11 +1085,12 @@ class ParserAST:
 
         log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
         
-        # I am sure that this token is an END_TOKEN, or even a START_SCOPE token, So I let expect_pop to take care of it.
+        # I am sure that this token is an END_TOKEN, or even a START_SCOPE token and EOF, So I let expect_pop to take care of it.
         token = self.current_token()
         self.last_scope.expect_pop(
             Scope(end_matches_sub_scopes[token.kind], token)
         )
+
         # I check that we are EOL
         self.next_token()
         self.expect_eol()

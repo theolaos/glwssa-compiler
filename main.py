@@ -93,8 +93,10 @@ def main():
 
 
     if error_stack.errors_stack:
+        log("From main func (main.py): Errors were caught", tags=["v"])
         error_stack.print_errors()
         return
+    log("From main func (main.py): No errors were caught", tags=["v"])
     
     error_stack.print_warnings()
 

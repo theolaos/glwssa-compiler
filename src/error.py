@@ -24,6 +24,7 @@ import traceback
 end_matches_sub_scopes = {
     "END_IF" : "IF",
     "END_LOOP" : "LOOP",
+    "UNTIL" : "START_LOOP",
     "END_SWITCH" : "SWITCH",
     "END_PROGRAM" : "PROGRAM",
     "END_PROCEDURE" : "PROCEDURE",

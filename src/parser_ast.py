@@ -1157,26 +1157,23 @@ class ParserAST:
         start_line = self.current_token().line
 
         self.last_scope.append(
-            Scope("LOOP", self.current_token())
+            Scope("DO_LOOP", self.current_token())
         )
 
         self.expect_token_alone("START_LOOP")
         self.next_line()
 
         do_branch = Block([])
-        self.parse_block(do_branch, ["UNTIL"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
-
+        self.parse_block(do_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
         log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=["eta"])
-        if not self.soft_match("UNTIL"):
-            raise SyntaxError(
-                f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
-            )
-        log("From parse_do (parser_ast.py): Found 'UNTIL'", tags=["eta"])
+        token = self.current_token()
+        self.last_scope.expect_pop(
+            Scope(end_matches_sub_scopes[token.kind], token)
+        )
 
         self.next_token()
         expr = self.parse_expression()
-
         self.expect_eol()
 
         branch.body.append(

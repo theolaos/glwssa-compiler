@@ -264,6 +264,8 @@ class ParserAST:
             token = self.current_token()
             if token.kind == "EOF":
                 log("From create tree(parser_ast.py): Finished creating tree, checking the succes of the creation.", tags=["ct"])
+                # Checks if the scope stack is empty. Else it pushes to the error stack "SCOPE NOT CLOSED" error
+                # for every scope that was still in the non empty scope stack                
                 self.last_scope.expect_empty(token)
                 break
     
@@ -331,8 +333,7 @@ class ParserAST:
 
         token = self.current_token()
         # if token.kind == "EOF":
-        #     # Checks if the scope stack is empty. Else it pushes to the error stack "SCOPE NOT CLOSED" error
-        #     # for every scope that was still in the non empty scope stack
+
         #     self.last_scope.expect_empty(token)
 
         log(f"From parse_block (parser_ast.py): Finished parse block {scope}", tags=["b"])
@@ -1105,7 +1106,9 @@ class ParserAST:
 
     def parse_for(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line
-
+        self.last_scope.append(
+            Scope("LOOP", self.current_token())
+        )
         self.next_token() # skipping the token for
         
         self.match("IDENTIFIER")
@@ -1128,15 +1131,16 @@ class ParserAST:
         
         self.next_line()
         for_branch = Block([])
-        self.parse_block(for_branch, ["END_LOOP"] + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
+        self.parse_block(for_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
-        log("From parse_for (parser_ast.py): Expecting token 'END_LOOP'", tags=["eta"])
-        self.expect_tokens_line(1)
-        if not self.soft_match("END_LOOP"):
-            raise SyntaxError(
-                f"Expected END_LOOP for the FOR scope from line {start_line} but found {self.current_token().kind} instead."
-            )
-        log("From parse_for (parser_ast.py): Found 'END_LOOP'", tags=["eta"])
+        log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
+        token = self.current_token()
+        self.last_scope.expect_pop(
+            Scope(end_matches_sub_scopes[token.kind], token)
+        )
+
+        self.next_token()
+        self.expect_eol()
 
         branch.body.append(
             For(
@@ -1151,6 +1155,10 @@ class ParserAST:
 
     def parse_do(self, branch: _Union[Block, Program]):
         start_line = self.current_token().line
+
+        self.last_scope.append(
+            Scope("LOOP", self.current_token())
+        )
 
         self.expect_token_alone("START_LOOP")
         self.next_line()

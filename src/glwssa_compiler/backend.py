@@ -29,4 +29,5 @@ class TranspilerBackend_cpp:
 
     def translate_tree(self, tree):
         self.tree = tree
+        return ""
         # translating

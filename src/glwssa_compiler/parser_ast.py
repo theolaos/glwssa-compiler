@@ -50,13 +50,6 @@ class ScopeStack:
 
     def append(self, item: Scope):
         self.stack.append(item)
-    
-
-    def pop(self) -> None:
-        """
-        Pops the last item.
-        """
-        self.stack.pop()
 
 
     def expect_pop(self, value: Scope) -> bool:
@@ -85,8 +78,24 @@ class ScopeStack:
                 self.error.push(
                     ScopeNotClosed(value.token, top)
                 )
+                # Trying to find which scope it top of the stack should close
                 self.stack.pop()
-            
+
+                # Try to recover by popping until the expected scope is found
+                while self.stack:
+                    print("from inside of parser:", self.stack)
+                    temp_top = self.stack[-1]
+
+                    print("from inside of parser:", temp_top)
+                    if temp_top.scope == value.scope:
+                        self.stack.pop()
+                        break
+                    
+                    if temp_top.scope == bottom:
+                        break
+                    
+                    self.stack.pop()
+
             elif kind in END_TOKENS_FOR_SCOPE:
                 # if only kind == bottom then pushes all the inbetween scopes out. with errs
                 log("From expect_pop (parser_ast.py): User made an error in the scope", tags=["de"])
@@ -117,11 +126,14 @@ class ScopeStack:
         return True
 
 
-    def expect_empty(self, token: Token) -> None:
+    def expect_empty(self, found_token: Token) -> None:
+        """
+        
+        """
         if self.stack:
             for scope in reversed(self.stack):
                 self.error.push(
-                    ScopeNotClosed(token, scope)
+                    ScopeNotClosed(found_token, scope)
                 )
 
 
@@ -303,14 +315,14 @@ class ParserAST:
         self.next_line()
 
 
-    def parse_block(self, 
-            branch: _Union[Block, Program], 
-            end_tokens: _List[str], 
-            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]], # {"",func()}
+    def parse_block(self,
+            branch: _Union[Block, Program],
+            end_tokens: _List[str],
+            recognizable_tokens: dict[str, _Callable[[_Union[Block, Program]], None]],
             scope: str = "scope"
         ) -> None:
         """
-        Parse block 
+        Parse block
         """
 
         log("From parse_block (parser_ast.py): Started parse block.", tags=["b"])
@@ -1084,7 +1096,7 @@ class ParserAST:
         # Parse the body of the IF block
         self.parse_block(while_branch, END_TOKENS_FOR_SUBSCOPE + END_TOKENS_FOR_BLOCK, self.parse_block_dict)
 
-        log(f"From parse_while (parser_ast.py): Expecting token {"END_LOOP"}", tags=["eta"])
+        log(f"From parse_while (parser_ast.py): Expecting token END_LOOP", tags=["eta"])
         
         # I am sure that this token is an END_TOKEN, or even a START_SCOPE token and EOF, So I let expect_pop to take care of it.
         token = self.current_token()

@@ -154,7 +154,6 @@ class ErrorStack:
             6 : self.empty_branches,
         }
 
-
         self.errors_stack: list[Diagnostic] = []
         self.warnings_stack: list[Diagnostic] = []
         self.notes_stack: list[Diagnostic] = []
@@ -175,7 +174,7 @@ class ErrorStack:
             except KeyError:
                 error_traceback = traceback.format_exc()
                 log(error_traceback, ["e"], "both")
-                print("ΣΦΑΛΜΑ <IZ90> : Εσωτερικό σφάλμα διαχείρισης σφαλμάτων του Διαμεταγλωττιστή.")
+                print("ΣΦΑΛΜΑ <IZ90> : Εσωτερικό σφάλμα του Διαχείριστη Σφαλμάτων του Διαμεταγλωττιστή.")
                 DebugIssue()
 
 

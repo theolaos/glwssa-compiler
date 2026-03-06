@@ -220,12 +220,13 @@ class ErrorStack:
 
 
     def scope_not_closed(self, diag: ScopeNotClosed) -> None:
+        print(diag)
         found_token = diag.found
         target_token = diag.expected.token
         end_line = diag.found.line
 
         print(f"ΣΦΑΛΜΑ <GP04> γρ.{end_line}. Ο βρόγχος '{target_token.value}', στην γραμμή {target_token.line}, έκλεισε λανθασμένα στην γραμμή {end_line}.")
-        print(f"Περίμενα '{target_token.value}' αλλά βρήκα '{found_token.value}' στην γραμμή: {end_line}.")
+        print(f"Περίμενα '{end_matches_sub_scopes_msg[diag.expected.scope]}' αλλά βρήκα '{found_token.value}' στην γραμμή: {end_line}.")
         
         add_arrows(self.code_file, target_token.line, target_token.col_start, target_token.col_end)
         add_arrows(self.code_file, end_line, found_token.col_start, found_token.col_end)

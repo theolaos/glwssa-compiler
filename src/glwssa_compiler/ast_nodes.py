@@ -29,7 +29,7 @@ class Program:
 @dataclass
 class Callable:
     name: Token
-    params: list[_Union[Expression]]
+    params: list[Expression]
     body: list[Statement]
 
 @dataclass
@@ -45,7 +45,7 @@ class Procedure(Callable): ...
 
 @dataclass
 class Literal(Expression):
-    value: _Union[int, float, str, bool]
+    ...
 
 @dataclass
 class String(Literal):
@@ -53,15 +53,15 @@ class String(Literal):
 
 @dataclass
 class Number(Literal):
-    value: int
+    value: _Union[int, str]
 
 @dataclass
 class Float(Literal):
-    value: float
+    value: _Union[float, str]
 
 @dataclass
 class Boolean(Literal):
-    value: bool
+    value: _Union[bool, str]
 
 
 @dataclass
@@ -78,7 +78,7 @@ class Variable(Expression):
     
     """
     name: str
-    var_type: Expression
+    var_type: _Optional[str]
 
 
 @dataclass 
@@ -118,7 +118,7 @@ class StructType(Expression):
 class ArrayIndex(Expression):
     name: str
     index_dim: _List[Expression]
-    var_type: str
+    var_type: _Optional[str]
 
 
 @dataclass
@@ -222,7 +222,7 @@ class CallProcedure(Statement):
 class CallFunction(Statement):
     name: str
     params: list[Expression]
-    func_type: Expression
+    func_type: _Optional[str]
 
 
 @dataclass

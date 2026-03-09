@@ -32,11 +32,14 @@ end_matches_sub_scopes = {
     "EOF" : "EOF"
 }
 
-end_matches_sub_scopes_msg = {
+scopes_to_grk_msg = {
     "IF" : "ΤΕΛΟΣ_ΑΝ",
     "LOOP" : "ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ",
     "START_LOOP" : "ΜΕΧΡΙΣ_ΟΤΟΥ",
     "SWITCH" : "ΤΕΛΟΣ_ΕΠΙΛΟΓΩΝ",
+    "PROGRAM" : "ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ",
+    "FUNCTION" : "ΤΕΛΟΣ_ΣΥΝΑΡΤΗΣΗΣ",
+    "PROCEDURE" : "ΤΕΛΟΣ_ΔΙΑΔΙΚΑΣΙΑΣ"
 }
 
 tokens_to_greek = {
@@ -219,19 +222,19 @@ class ErrorStack:
 
 
     def scope_not_closed(self, diag: ScopeNotClosed) -> None:
-        print(diag)
+        log(f"From scope not closed (error.py): {diag}", tags=["de"])
         found_token = diag.found
         target_token = diag.expected.token
         end_line = diag.found.line
 
         print(f"ΣΦΑΛΜΑ <GP04> γρ.{end_line}. Ο βρόγχος '{target_token.value}', στην γραμμή {target_token.line}, έκλεισε λανθασμένα στην γραμμή {end_line}.")
-        print(f"Περίμενα '{end_matches_sub_scopes_msg[diag.expected.scope]}' αλλά βρήκα '{found_token.value}' στην γραμμή: {end_line}.")
+        print(f"Περίμενα '{scopes_to_grk_msg[diag.expected.scope]}' αλλά βρήκα '{found_token.value}' στην γραμμή: {end_line}.")
         
         add_arrows(self.code_file, target_token.line, target_token.col_start, target_token.col_end)
         add_arrows(self.code_file, end_line, found_token.col_start, found_token.col_end)
 
         try:
-            print(f"Συμβουλή: Άλλαξε το {found_token.value} σε {end_matches_sub_scopes_msg[found_token.kind]}.")
+            print(f"Συμβουλή: Άλλαξε το {found_token.value} σε {scopes_to_grk_msg[found_token.kind]}.")
         except KeyError:
             ...
     

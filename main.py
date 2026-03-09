@@ -16,12 +16,12 @@ import os
 
 import traceback
 
-from src.error import ErrorStack
-from src.lexer import Lexer
-from src.parser_ast import ParserAST
-from src.analyzer import TreeAnalyzer
-from src.backend import TranspilerBackend_cpp
-from src.log import set_global_tags, log, flush_log_file
+from src.glwssa_compiler.error import ErrorStack
+from src.glwssa_compiler.lexer import Lexer
+from src.glwssa_compiler.parser_ast import ParserAST
+from src.glwssa_compiler.analyzer import TreeAnalyzer
+from src.glwssa_compiler.backend import TranspilerBackend_cpp
+from src.glwssa_compiler.log import set_global_tags, log, flush_log_file
 
 
 def main():

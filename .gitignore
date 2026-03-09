@@ -9,6 +9,9 @@ output.cpp
 *.a
 *.lib
 __pycache__/*
+__pycache__/
+.pytest_cache/
+.env/
 *.pyc
 *.pyo
 *.pyd

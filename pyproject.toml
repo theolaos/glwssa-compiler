@@ -1,2 +1,5 @@
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.pyright]
+typeCheckingMode = "off"

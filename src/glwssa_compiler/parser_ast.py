@@ -52,6 +52,7 @@ class ScopeStack:
         self.stack.append(item)
 
 
+    # maybe the value could be a single Token, because the scope type is being found by the token itself.
     def expect_pop(self, value: Scope) -> bool:
         """
         The value here is a tuple with the END_TOKEN and an ID/Line for nested
@@ -59,11 +60,11 @@ class ScopeStack:
         """
         log(f"From expect_pop (parser_ast.py): This is the stack: {self.stack}", tags=["de"])
         if not self.stack:
-            self.error.push(
-                ScopeNotClosed(value.token, None)
-            )
+            # TODO: Handle this
+            # self.error.push(
+            #     ScopeNotClosed(value.token, None)
+            # )
             return False
-
 
         top = self.stack[-1]
          
@@ -83,10 +84,8 @@ class ScopeStack:
 
                 # Try to recover by popping until the expected scope is found
                 while self.stack:
-                    print("from inside of parser:", self.stack)
                     temp_top = self.stack[-1]
 
-                    print("from inside of parser:", temp_top)
                     if temp_top.scope == value.scope:
                         self.stack.pop()
                         break
@@ -109,9 +108,11 @@ class ScopeStack:
                     log("From expect_pop (parser_ast.py): User made an error in the scope", tags=["de"])
                     self.error.push(
                         ScopeNotClosed(value.token, bottom)
+
                     )  
 
                 self.stack.clear()
+
             elif kind in START_TOKENS_FOR_SCOPE:
                 log("From expect_pop (parser_ast.py): User made an error in the scope, it never ended and a start scope token was found", tags=["de"])
                 for scope in reversed(self.stack):
@@ -136,6 +137,9 @@ class ScopeStack:
                     ScopeNotClosed(found_token, scope)
                 )
 
+        self.stack.clear()
+
+
 
 class ParserAST:
     def __init__(self, 
@@ -153,7 +157,7 @@ class ParserAST:
         self.procedures: _List[Callable] = []
         self.functions: _List[Callable] = []
 
-        self.program_name = "a"
+        self.program_name = Token("nn","nn","nn",-1,-1,-1,-1)
         self.code: _List[str] = []
 
         self.current_token_index = 0
@@ -227,7 +231,7 @@ class ParserAST:
         self.current_token_index += 1
 
 
-    def next_line(self) -> bool:
+    def next_line(self) -> None:
         self.current_line += 1
         self.current_token_index = 0
 
@@ -463,13 +467,13 @@ class ParserAST:
         node = self.parse_logical_and()
         
         token = self.current_token()
-        token_type, token_value = token.kind, token.value
+        token_type = token.kind
 
         while token_type == "OR":
             self.expect("OR")
             node = BinaryOperation(left=node, operator="OR", right=self.parse_logical_and())
 
-            token_type, token_value = self.current_token()
+            token_type = self.current_token().kind
 
         return node
 
@@ -532,7 +536,7 @@ class ParserAST:
         return node
 
 
-    def parse_term(self) -> _Union[BinaryOperation, Expression]:
+    def parse_term(self) -> _Union[BinaryOperation, Statement, Expression]:
         node = self.parse_power()
 
         token = self.current_token()
@@ -564,12 +568,12 @@ class ParserAST:
             node = BinaryOperation(left=node, operator="POW", right=right)
         
             token = self.current_token()
-            token_type, token_value = token.kind, token.value
+            token_type= token.kind
         
         return node
 
 
-    def parse_unary(self) -> _Union[UnaryOperator, Expression]:
+    def parse_unary(self) -> _Union[UnaryOperator, Expression, Statement]:
         token = self.current_token()
         token_type, token_value = token.kind, token.value
         while token_type in {"NOT","MINUS"}:
@@ -585,7 +589,7 @@ class ParserAST:
         return self.parse_factor()
 
 
-    def parse_factor(self) -> _Union[Number, Expression]:
+    def parse_factor(self) -> _Union[Expression, Statement]:
         """
         Simple numbers (0-9) INT, FLOAT
         And parenetheses LPAREN and RPAREN

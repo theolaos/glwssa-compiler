@@ -46,7 +46,7 @@ def test_multiple_push():
 
     assert stack.stack[-1] == s2
     assert stack.stack[0] == s1
-    assert len(stack.stack) == 2
+    assert len(stack.stack) == 2 
 
 
 def test_expect_pop_correct_scope():
@@ -125,9 +125,10 @@ def test_error_pop_in_nested_scopes():
     stack = ScopeStack(err)
 
     # Push nested scopes
+    stack.append(Scope("PROGRAM", DummyToken("PROGRAM")))
     stack.append(Scope("IF", DummyToken("IF")))
-    stack.append(Scope("WHILE", DummyToken("WHILE")))
-    stack.append(Scope("FOR", DummyToken("FOR")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
+    stack.append(Scope("LOOP", DummyToken("FOR")))
 
     print("Before Pops:", stack.stack)
 
@@ -135,24 +136,60 @@ def test_error_pop_in_nested_scopes():
 
     print("Error Stack:", err.stack)
 
-    assert len(err.stack) == 3
+    assert len(err.stack) == 4
     # assert 
 
 
-def test_wrong_nested_close():
+def test_one_wrong_nested_close():
     err = Error()
     stack = ScopeStack(err)
 
     stack.append(Scope("PROGRAM", DummyToken("PROGRAM")))
     stack.append(Scope("IF", DummyToken("IF")))
-    stack.append(Scope("WHILE", DummyToken("WHILE")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
 
     # Attempt to close IF before WHILE
     result = stack.expect_pop(Scope("IF", DummyToken("END_IF")))
 
     assert result is False
-    assert len(stack.stack) == 0
+    assert len(stack.stack) == 1
     assert len(err.stack) == 1
+
+
+def test_program_wrong_nested_close():
+    err = Error()
+    stack = ScopeStack(err)
+
+    stack.append(Scope("PROGRAM", DummyToken("PROGRAM")))
+    stack.append(Scope("IF", DummyToken("IF")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
+
+    result = stack.expect_pop(Scope("PROGRAM", DummyToken("END_PROGRAM")))
+
+    assert result is False
+    assert len(stack.stack) == 0
+    assert len(err.stack) == 2
+
+
+def test_program_wrong_nested_close():
+    err = Error()
+    stack = ScopeStack(err)
+
+    stack.append(Scope("PROGRAM", DummyToken("PROGRAM")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
+    stack.append(Scope("IF", DummyToken("IF")))
+    stack.append(Scope("LOOP", DummyToken("FOR")))
+
+    result1 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
+    result2 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
+
+    stack.expect_empty(DummyToken("EMPTY"))
+
+    assert result1 is True
+    assert result2 is False
+    assert len(stack.stack) == 0
+    print("The error stack:", err.stack)
+    assert len(err.stack) == 3
 
 
 # def test_expect_pop_empty_stack():

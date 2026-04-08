@@ -69,19 +69,19 @@ tokens_to_greek = {
     'STEP':'ΜΕ_ΒΗΜΑ',
     'WHILE':'ΟΣΟ',
     'REPEAT':'ΕΠΑΝΑΛΑΒΕ',
-    'END_LOOP':'ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ',        # End if
+    'END_LOOP':'ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ',       
     'START_LOOP':'ΑΡΧΗ_ΕΠΑΝΑΛΗΨΗΣ',
     'UNTIL':'ΜΕΧΡΙΣ_ΟΤΟΥ',
     'END_PROGRAM':'ΤΕΛΟΣ_ΠΡΟΓΡΑΜΜΑΤΟΣ',
-    'ASSIGN': '<-',             # Assignment operator
-    'READ' : 'ΔΙΑΒΑΣΕ',           # Read input
-    'WRITE' : 'ΓΡΑΨΕ',            # Write output
-    'NEQ': '<>',      # Match '<>' only if not part of a larger token
-    'GTE': '>=',                 # Greater than or equal to
-    'LTE': '<=',                 # Less than or equal to
-    'GT' : '>',                   # Greater than
-    'LT' : '<',                   # Less than
-    'EQ' : '=',                   # Equal to
+    'ASSIGN': '<-',             
+    'READ' : 'ΔΙΑΒΑΣΕ',          
+    'WRITE' : 'ΓΡΑΨΕ',         
+    'NEQ': '<>', 
+    'GTE': '>=',              
+    'LTE': '<=',              
+    'GT' : '>',                  
+    'LT' : '<',            
+    'EQ' : '=',     
     'NOT' : 'ΟΧΙ',
     'AND' : 'ΚΑΙ',
     'OR' : 'Ή',

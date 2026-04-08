@@ -1,5 +1,6 @@
 import pytest
 from glwssa_compiler import ScopeStack, Scope, ErrorStack
+from glwssa_compiler.log import log
 
 class Error():
     def __init__(self):
@@ -140,7 +141,8 @@ def test_error_pop_in_nested_scopes():
     # assert 
 
 
-def test_one_wrong_nested_close():
+def test_nested_not_closing_properly():
+    log(f"Testing test_nested_not_closing now.", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -152,11 +154,13 @@ def test_one_wrong_nested_close():
     result = stack.expect_pop(Scope("IF", DummyToken("END_IF")))
 
     assert result is False
-    assert len(stack.stack) == 1
+    assert len(stack.stack) == 2 # We did only one expect_pop
     assert len(err.stack) == 1
+    log(f"Finished testing test_nested_not_closing.", tags=["pytest"])
 
 
-def test_program_wrong_nested_close():
+def test_early_program_close():
+    log(f"Testing test_early_program_close now.", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -164,14 +168,26 @@ def test_program_wrong_nested_close():
     stack.append(Scope("IF", DummyToken("IF")))
     stack.append(Scope("LOOP", DummyToken("WHILE")))
 
-    result = stack.expect_pop(Scope("PROGRAM", DummyToken("END_PROGRAM")))
+    # Simulating that it found the token END_PROGRAM
+    result = stack.expect_pop(Scope("PROGRAM", DummyToken("END_PROGRAM"))) 
 
     assert result is False
     assert len(stack.stack) == 0
     assert len(err.stack) == 2
+    log(f"Finished testing test_early_program_close.", tags=["pytest"])
 
 
 def test_program_wrong_nested_close():
+    log(f"Testing test_program_wrong_nested_close now.", tags=["pytest"])
+    # Simulating the below code scopes
+    # ΠΡΟΓΡΑΜΜΑ ΘΕΜΑ_Δ
+    # ΑΡΧΗ
+    #     ΟΣΟ ν ΕΠΑΝΑΛΑΒΕ
+    #         ΑΝ Α ΤΟΤΕ
+    #             ΓΙΑ Α ΑΠΟ Α ΜΕΧΡΙ Π
+    #             ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ
+    #         ΤΕΛΟΣ_ΕΠΑΝΑΛΗΨΗΣ
+
     err = Error()
     stack = ScopeStack(err)
 
@@ -190,7 +206,7 @@ def test_program_wrong_nested_close():
     assert len(stack.stack) == 0
     print("The error stack:", err.stack)
     assert len(err.stack) == 3
-
+    log(f"Finished testing test_program_wrong_nested_close.")
 
 # def test_expect_pop_empty_stack():
 #     err = Error()

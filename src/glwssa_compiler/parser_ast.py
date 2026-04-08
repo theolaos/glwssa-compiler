@@ -73,7 +73,7 @@ class ScopeStack:
         if top.scope != value.scope:
             kind = value.token.kind
 
-            # Assumes that the user made a mistake.
+            # Assumes that the user made a mistake. Just so it can continue with parsing.
             if kind in END_TOKENS_FOR_SUBSCOPE:
                 log("From expect_pop (parser_ast.py): Assumed the user made an error with the subscope.", tags=["de"])
                 self.error.push(
@@ -81,19 +81,6 @@ class ScopeStack:
                 )
                 # Trying to find which scope it top of the stack should close
                 self.stack.pop()
-
-                # Try to recover by popping until the expected scope is found
-                while self.stack:
-                    temp_top = self.stack[-1]
-
-                    if temp_top.scope == value.scope:
-                        self.stack.pop()
-                        break
-                    
-                    if temp_top.scope == bottom:
-                        break
-                    
-                    self.stack.pop()
 
             elif kind in END_TOKENS_FOR_SCOPE:
                 # if only kind == bottom then pushes all the inbetween scopes out. with errs
@@ -127,24 +114,25 @@ class ScopeStack:
         return True
 
 
-    def expect_empty(self, found_token: Token) -> None:
+    def expect_empty(self, found_token: Token) -> bool:
         """
-        
+        Returns a bool if the stack is empty.
         """
+        f = True
         if self.stack:
             for scope in reversed(self.stack):
                 self.error.push(
                     ScopeNotClosed(found_token, scope)
                 )
-
+            f = False
         self.stack.clear()
-
+        return f
 
 
 class ParserAST:
     def __init__(self, 
             tokens: _List[_List[Token]], 
-            token: _List[str], 
+            token: _List[str],
             error_stack: ErrorStack
         ):
         self.error_stack = error_stack

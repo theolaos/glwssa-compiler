@@ -25,6 +25,7 @@ from src.glwssa_compiler.log import set_global_tags, log, flush_log_file
 
 
 def main():
+    # pytest - logging the test start to finish, for pytest debugging
     # e - error
     # de - debug error management
     # v - verbose

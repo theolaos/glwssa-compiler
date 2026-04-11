@@ -95,7 +95,6 @@ class ScopeStack:
                     log("From expect_pop (parser_ast.py): User made an error in the scope", tags=["de"])
                     self.error.push(
                         ScopeNotClosed(value.token, bottom)
-
                     )  
 
                 self.stack.clear()

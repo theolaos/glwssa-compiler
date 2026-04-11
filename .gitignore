@@ -19,14 +19,17 @@ __pycache__/
 mingw64/*
 
 .vscode
-transpiler.log
+# Logs dir and files 
+*.log
+logs/
 
+# test pys
 test.py
 
+# misc
 genastdot.py
-
 ast.dot
-
-test.cpp
-
 test.txt
+
+# cpp stuff
+test.cpp

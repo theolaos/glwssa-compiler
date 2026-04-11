@@ -1,6 +1,6 @@
-import pytest
-from glwssa_compiler import ScopeStack, Scope, ErrorStack
-from glwssa_compiler.log import log
+from glwssa_compiler import *
+
+logs_dir = "tests/levels_test/ScopeStack_test/logs/"
 
 class Error():
     def __init__(self):
@@ -15,6 +15,10 @@ class DummyToken:
     def __init__(self, kind):
         self.kind = kind
 
+def get_scope_attr(scope_list: list[ScopeNotClosed]) -> list[str]:
+    return [s.expected.scope for s in scope_list]
+
+# ________________________________________________ TESTS ________________________________________________
 
 def test_scope_stack_initialization():
     err = Error()
@@ -51,6 +55,9 @@ def test_multiple_push():
 
 
 def test_expect_pop_correct_scope():
+    func_name = "test_expect_pop_correct_scope"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -62,9 +69,13 @@ def test_expect_pop_correct_scope():
     assert result is True
     assert stack.stack == []
     assert err.stack == []
+    log(f"End", tags=["pytest"])
 
 
 def test_expect_pop_wrong_scope():
+    func_name = "test_expect_pop_wrong_scope"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -80,9 +91,13 @@ def test_expect_pop_wrong_scope():
 
     assert result is False
     assert len(err.stack) == 1
+    log(f"End", tags=["pytest"])
 
 
 def test_pop_in_nested_scopes():
+    func_name = "test_pop_in_nested_scopes"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -94,7 +109,7 @@ def test_pop_in_nested_scopes():
 
     print("Before Pops:", stack.stack)
 
-    # Close FOR
+    # Close START_LOOP - UNTIL
     result1 = stack.expect_pop(Scope("START_LOOP", DummyToken("UNTIL")))
     print("After START_LOOP Pop:", stack.stack)
 
@@ -117,11 +132,15 @@ def test_pop_in_nested_scopes():
     assert result2 is True
     assert result3 is True
 
-    assert stack.stack == []
+    assert len(stack.stack) == 0
     assert len(err.stack) == 0
+    log(f"End", tags=["pytest"])
 
 
 def test_error_pop_in_nested_scopes():
+    func_name = "test_error_pop_in_nested_scopes"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -139,10 +158,13 @@ def test_error_pop_in_nested_scopes():
 
     assert len(err.stack) == 4
     # assert 
+    log(f"End", tags=["pytest"])
 
 
 def test_nested_not_closing_properly():
-    log(f"Testing test_nested_not_closing now.", tags=["pytest"])
+    func_name = "test_nested_not_closing_properly"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -155,12 +177,14 @@ def test_nested_not_closing_properly():
 
     assert result is False
     assert len(stack.stack) == 2 # We did only one expect_pop
-    assert len(err.stack) == 1
-    log(f"Finished testing test_nested_not_closing.", tags=["pytest"])
+    assert len(err.stack) == 1 # Only one, because we did one expect_pop
+    log(f"End", tags=["pytest"])
 
 
 def test_early_program_close():
-    log(f"Testing test_early_program_close now.", tags=["pytest"])
+    func_name = "test_early_program_close"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -170,16 +194,46 @@ def test_early_program_close():
 
     # Simulating that it found the token END_PROGRAM
     result = stack.expect_pop(Scope("PROGRAM", DummyToken("END_PROGRAM"))) 
+    err_scopes = get_scope_attr(err.stack)
 
     assert result is False
     assert len(stack.stack) == 0
     assert len(err.stack) == 2
-    log(f"Finished testing test_early_program_close.", tags=["pytest"])
+    assert err_scopes.count("LOOP") == 1    
+    assert err_scopes.count("IF") == 1    
+
+    log(f"End", tags=["pytest"])
+
+
+def test_wrong_early_program_close():
+    func_name = "test_wrong_early_program_close"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
+    err = Error()
+    stack = ScopeStack(err)
+
+    stack.append(Scope("FUNCTION", DummyToken("FUNCTION")))
+    stack.append(Scope("IF", DummyToken("IF")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
+
+    # Simulating that it found the token END_PROGRAM
+    result = stack.expect_pop(Scope("PROGRAM", DummyToken("END_PROGRAM"))) 
+    err_scopes = get_scope_attr(err.stack)
+
+    assert result is False
+    assert len(stack.stack) == 0
+    assert len(err.stack) == 3
+    assert err_scopes.count("LOOP") == 1    
+    assert err_scopes.count("IF") == 1    
+    assert err_scopes.count("FUNCTION") == 1    
+    log(f"End", tags=["pytest"])
 
 
 def test_program_wrong_nested_close():
-    log(f"Testing test_program_wrong_nested_close now.", tags=["pytest"])
-    # Simulating the below code scopes
+    func_name = "test_program_wrong_nested_close"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
+    # Simulating the below code scopes:
     # ΠΡΟΓΡΑΜΜΑ ΘΕΜΑ_Δ
     # ΑΡΧΗ
     #     ΟΣΟ ν ΕΠΑΝΑΛΑΒΕ
@@ -200,21 +254,45 @@ def test_program_wrong_nested_close():
     result2 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
 
     stack.expect_empty(DummyToken("EMPTY"))
+    err_scopes = get_scope_attr(err.stack)
 
     assert result1 is True
     assert result2 is False
     assert len(stack.stack) == 0
-    print("The error stack:", err.stack)
     assert len(err.stack) == 3
-    log(f"Finished testing test_program_wrong_nested_close.")
+    assert err_scopes.count("LOOP") == 1    
+    assert err_scopes.count("IF") == 1     
+    assert err_scopes.count("PROGRAM") == 1  
+    log(f"End", tags=["pytest"])
 
-# def test_expect_pop_empty_stack():
-#     err = Error()
-#     stack = ScopeStack(err)
 
-#     scope = Scope("IF", DummyToken("IF"))
+def test_function_scope():
+    func_name = "test_function_scope"
+    update_path(logs_dir, func_name + ".log")
+    log(f"Start of {func_name}", tags=["pytest"])
+    err = Error()
+    stack = ScopeStack(err)
 
-#     with pytest.raises(IndexError):
-#         stack.expect_pop(scope)
+    stack.append(Scope("PROGRAM", DummyToken("PROGRAM")))
+    stack.append(Scope("LOOP", DummyToken("WHILE")))
+    stack.append(Scope("IF", DummyToken("IF")))
+    stack.append(Scope("LOOP", DummyToken("FOR")))
 
+    result1 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
+    result2 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
+
+    stack.expect_empty(DummyToken("EMPTY"))
+    err_scopes = get_scope_attr(err.stack)
+
+    assert result1 is True
+    assert result2 is False
+    assert len(stack.stack) == 0
+    assert len(err.stack) == 3
+    assert err_scopes.count("LOOP") == 1    
+    assert err_scopes.count("IF") == 1     
+    assert err_scopes.count("PROGRAM") == 1      
+    log(f"End", tags=["pytest"])
+
+
+    
 

@@ -13,19 +13,38 @@
 
 # logger.py
 import datetime
+import os
+
 from typing import Iterable as _Iterable
 from typing import Literal as _Literal
+from typing import Optional as _Optional
 
 # --- Global configuration ---
-LOG_FILE = "transpiler.log"
+
+class Info:
+    PATH: str = ""
+    LOG_FILE_NAME_EXT: str = "transpiler.log"
+    DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "file"  # "both", "file", "print"
+    
+
 GLOBAL_TAGS: set[str] = set()                               # Add tags here globally
 EXCLUDE_GLOBAL_TAGS: set[str] = set()
-DEFAULT_OUTPUT: _Literal["both", "file", "print"] = "file"  # "both", "file", "print"
 LOGGING: bool = True
+DEFAULT_FLUSH: bool = True # If to fulsh on every log in update_path
+
+
+def update_path(new_path, new_name):
+    Info.PATH = new_path
+    Info.LOG_FILE_NAME_EXT = new_name
+    
+    os.makedirs(os.path.dirname(new_path + new_name), exist_ok=True)
+
+    if DEFAULT_FLUSH:
+        flush_log_file()
 
 
 def flush_log_file():
-    with open(LOG_FILE, "w") as f:
+    with open(Info.PATH + Info.LOG_FILE_NAME_EXT, "w") as f:
         f.write("")
 
 
@@ -65,7 +84,7 @@ def log(
         return
 
     # 1. Determine output mode
-    mode = output or DEFAULT_OUTPUT
+    mode = output or Info.DEFAULT_OUTPUT
 
     # 2. Tags check: we only log if call-tags ⊆ global-tags
     call_tags = set(tags)
@@ -82,7 +101,7 @@ def log(
 
     # 5. File logging
     if mode in ("file", "both"):
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
+        with open(Info.PATH + Info.LOG_FILE_NAME_EXT, "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
     # 6. Terminal printing

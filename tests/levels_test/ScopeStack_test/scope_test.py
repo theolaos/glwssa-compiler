@@ -57,7 +57,7 @@ def test_multiple_push():
 def test_expect_pop_correct_scope():
     func_name = "test_expect_pop_correct_scope"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -67,15 +67,15 @@ def test_expect_pop_correct_scope():
     result = stack.expect_pop(scope)
 
     assert result is True
-    assert stack.stack == []
-    assert err.stack == []
+    assert len(stack.stack) == 0
+    assert len(err.stack) == 0
     log(f"End", tags=["pytest"])
 
 
 def test_expect_pop_wrong_scope():
     func_name = "test_expect_pop_wrong_scope"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -97,7 +97,7 @@ def test_expect_pop_wrong_scope():
 def test_pop_in_nested_scopes():
     func_name = "test_pop_in_nested_scopes"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -140,7 +140,7 @@ def test_pop_in_nested_scopes():
 def test_error_pop_in_nested_scopes():
     func_name = "test_error_pop_in_nested_scopes"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -164,7 +164,7 @@ def test_error_pop_in_nested_scopes():
 def test_nested_not_closing_properly():
     func_name = "test_nested_not_closing_properly"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -184,7 +184,7 @@ def test_nested_not_closing_properly():
 def test_early_program_close():
     func_name = "test_early_program_close"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -208,7 +208,7 @@ def test_early_program_close():
 def test_wrong_early_program_close():
     func_name = "test_wrong_early_program_close"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 
@@ -232,7 +232,7 @@ def test_wrong_early_program_close():
 def test_program_wrong_nested_close():
     func_name = "test_program_wrong_nested_close"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     # Simulating the below code scopes:
     # ΠΡΟΓΡΑΜΜΑ ΘΕΜΑ_Δ
     # ΑΡΧΗ
@@ -269,7 +269,7 @@ def test_program_wrong_nested_close():
 def test_function_scope():
     func_name = "test_function_scope"
     update_path(logs_dir, func_name + ".log")
-    log(f"Start of {func_name}", tags=["pytest"])
+    log(f"Start of '{func_name}'", tags=["pytest"])
     err = Error()
     stack = ScopeStack(err)
 

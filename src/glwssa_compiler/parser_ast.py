@@ -638,7 +638,7 @@ class ParserAST:
             )
 
 
-    # __________________________________________________________________________________________________
+    # __________________________________________________________________________________________________ Switch
 
     def parse_case_expression(self):
         """
@@ -739,14 +739,21 @@ class ParserAST:
             expr = self.parse_expression()
             
             self.expect_eol() # TODO investigate this
+            self.next_line()
 
             # self.constants_table[]
+            log(
+                f"From parse_constant_declaration (parser_ast.py): Created node for ConstantDeclaration:",
+                f"{constant_name} and expr: {expr}", tags=["vd"]
+            )
             branch.body.append(
                 ConstantDeclaration(
                     constant_name, 
                     expr
                 )
             )
+
+        log("From parse_constant_declaration (parser_ast.py): Finished parsing constants ", tags=["vd"])
 
 
     def parse_declaration(self, branch: _Union[Block, Program]): # ΜΕΤΑΒΛΗΤΕΣ section
@@ -1160,7 +1167,7 @@ class ParserAST:
         start_line = self.current_token().line
 
         self.last_scope.append(
-            Scope("DO_LOOP", self.current_token())
+            Scope("START_LOOP", self.current_token())
         )
 
         self.expect_token_alone("START_LOOP")
@@ -1171,6 +1178,7 @@ class ParserAST:
 
         log("From parse_do (parser_ast.py): Expecting token 'UNTIL'", tags=["eta"])
         token = self.current_token()
+        log(f"From parse_do (parser_ast.py): Current token: {token}", tags=["eta"])
         self.last_scope.expect_pop(
             Scope(end_matches_sub_scopes[token.kind], token)
         )

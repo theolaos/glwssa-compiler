@@ -72,7 +72,7 @@ def main():
     tokens = lexer.tokenize_with_lines()
     log("From main func (main.py): Code has been succesfully tokenized", tags=["v"])
 
-    parser = ParserAST(tokens, lexer.token_type, error_stack)
+    parser = ParserAST(tokens, error_stack)
     log("From main func (main.py): The parser has been succesfully initialized", tags=["v"])
     program_ast, program_name = parser.parse()
     log("From main func (main.py): Code has been succesfully parsed", tags=["v"])

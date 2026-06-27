@@ -130,14 +130,13 @@ class ScopeStack:
 
 class ParserAST:
     def __init__(self, 
-            tokens: _List[_List[Token]], 
-            token: _List[str],
+            tokens: _List[_List[Token]],
             error_stack: ErrorStack
         ):
         self.error_stack = error_stack
 
         self.program_tokens = tokens
-        self.tokens = token
+        self.tokens = InfoTokens.tokens_type
 
         self.program = Program([])
 

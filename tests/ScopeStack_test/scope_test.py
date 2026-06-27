@@ -1,3 +1,16 @@
+# This file is part of: glwssa-compiler 
+# Copyright (C) 2025  @theolaos
+# glwssa-compiler is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 from glwssa_compiler import *
 
 logs_dir = "tests/levels_test/ScopeStack_test/logs/"
@@ -80,14 +93,14 @@ def test_expect_pop_wrong_scope():
     stack = ScopeStack(err)
 
     stack.append(Scope("IF", DummyToken("IF")))
-    print("Before Stack Change (IF):", stack.stack)
+    log("Before Stack Change (IF):", stack.stack)
 
     wrong_scope = Scope("WHILE", DummyToken("END_LOOP"))
 
     result = stack.expect_pop(wrong_scope)
 
-    print("After Stack Pop (WHILE):", stack.stack)
-    print("Error Stack:", err.stack)
+    log("After Stack Pop (WHILE):", stack.stack)
+    log("Error Stack:", err.stack)
 
     assert result is False
     assert len(err.stack) == 1
@@ -107,25 +120,25 @@ def test_pop_in_nested_scopes():
     stack.append(Scope("LOOP", DummyToken("FOR")))
     stack.append(Scope("START_LOOP", DummyToken("STAR_LOOP")))
 
-    print("Before Pops:", stack.stack)
+    log("Before Pops:", stack.stack)
 
     # Close START_LOOP - UNTIL
     result1 = stack.expect_pop(Scope("START_LOOP", DummyToken("UNTIL")))
-    print("After START_LOOP Pop:", stack.stack)
+    log("After START_LOOP Pop:", stack.stack)
 
     # Close FOR
     result1 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
-    print("After FOR Pop:", stack.stack)
+    log("After FOR Pop:", stack.stack)
 
     # Close WHILE
     result2 = stack.expect_pop(Scope("LOOP", DummyToken("END_LOOP")))
-    print("After WHILE Pop:", stack.stack)
+    log("After WHILE Pop:", stack.stack)
 
     # Close IF
     result3 = stack.expect_pop(Scope("IF", DummyToken("END_IF")))
-    print("After IF Pop:", stack.stack)
+    log("After IF Pop:", stack.stack)
 
-    print("Error Stack:", err.stack)
+    log("Error Stack:", err.stack)
     stack.expect_empty(DummyToken("EMPTY"))
 
     assert result1 is True
@@ -150,11 +163,11 @@ def test_error_pop_in_nested_scopes():
     stack.append(Scope("LOOP", DummyToken("WHILE")))
     stack.append(Scope("LOOP", DummyToken("FOR")))
 
-    print("Before Pops:", stack.stack)
+    log("Before Pops:", stack.stack)
 
     stack.expect_empty(DummyToken("EMPTY"))
 
-    print("Error Stack:", err.stack)
+    log("Error Stack:", err.stack)
 
     assert len(err.stack) == 4
     # assert 
